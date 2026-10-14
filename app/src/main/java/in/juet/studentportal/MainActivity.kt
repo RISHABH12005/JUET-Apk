@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -98,9 +100,11 @@ private fun LoginScreen(vm: PortalViewModel) {
     var password by remember { mutableStateOf("") }
     Box(Modifier.fillMaxSize().background(Canvas).padding(24.dp), contentAlignment = Alignment.Center) {
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Box(Modifier.size(68.dp).clip(RoundedCornerShape(22.dp)).background(Green), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.School, null, tint = Color.White, modifier = Modifier.size(36.dp))
-            }
+            Image(
+                painter = painterResource(id = R.drawable.juet_logo),
+                contentDescription = "Official JUET logo",
+                modifier = Modifier.size(112.dp)
+            )
             Text("JUET Portal", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Ink)
             Text("Your campus life, in one place.", color = Muted)
             Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
