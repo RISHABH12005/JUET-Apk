@@ -24,12 +24,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 
-private val Ink = Color(0xFF17243B)
-private val Green = Color(0xFF167D65)
-private val PaleGreen = Color(0xFFE7F5EF)
-private val Canvas = Color(0xFFF5F7FA)
-private val Muted = Color(0xFF6B778A)
-private val Orange = Color(0xFFCA7A20)
+private val Ink = Color(0xFFE7EDF5)
+private val Green = Color(0xFF69D7B0)
+private val PaleGreen = Color(0xFF183A35)
+private val Canvas = Color(0xFF0B1016)
+private val CardBg = Color(0xFF151D27)
+private val Muted = Color(0xFFA0AEC0)
+private val Orange = Color(0xFFF3B45E)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,9 +42,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PortalTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Green, onPrimary = Color.White, secondary = Ink,
-            background = Canvas, surface = Color.White, onSurface = Ink, onBackground = Ink
+        colorScheme = darkColorScheme(
+            primary = Green, onPrimary = Color(0xFF06271F), secondary = Color(0xFF9CB8D8),
+            background = Canvas, surface = CardBg, onSurface = Ink, onBackground = Ink,
+            surfaceVariant = Color(0xFF222D3A), onSurfaceVariant = Muted,
+            outline = Color(0xFF394655)
         ),
         content = content
     )
@@ -94,7 +97,7 @@ private fun LoginScreen(vm: PortalViewModel) {
             }
             Text("JUET Portal", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Ink)
             Text("Your campus life, in one place.", color = Muted)
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text("Student sign in", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
@@ -127,7 +130,7 @@ private fun PortalScaffold(vm: PortalViewModel) {
     Scaffold(
         containerColor = Canvas,
         bottomBar = {
-            NavigationBar(containerColor = Color.White) {
+            NavigationBar(containerColor = CardBg) {
                 listOf(PortalTab.Home, PortalTab.Attendance, PortalTab.Results, PortalTab.Timetable, PortalTab.Profile).forEach { tab ->
                     NavigationBarItem(
                         selected = vm.selectedTab == tab,
@@ -167,7 +170,7 @@ private fun PageHeader(title: String, subtitle: String? = null, trailing: (@Comp
 private fun DashboardScreen(vm: PortalViewModel) {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            PageHeader("Good evening", "Here's your campus snapshot", trailing = {
+            PageHeader("JUET Student Portal", "B.Tech CSE · Semester VII", trailing = {
                 IconButton(onClick = { vm.navigate(PortalTab.Notices) }) { Icon(Icons.Default.NotificationsNone, "Notices") }
             })
         }
@@ -177,8 +180,8 @@ private fun DashboardScreen(vm: PortalViewModel) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("STUDENT OVERVIEW", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.labelMedium)
                         Text("Welcome back", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("Student ID: DEMO-001", color = Color(0xFFE1E8F0))
-                        Text("Academic data shown is illustrative", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
+                        Text("B.Tech CSE · Semester VII", color = Color(0xFFE1E8F0))
+                        Text("Timetable and calendar sourced from your uploaded PDFs", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
                     }
                     Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF29415C)), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.School, null, tint = Color.White, modifier = Modifier.size(30.dp))
@@ -188,8 +191,8 @@ private fun DashboardScreen(vm: PortalViewModel) {
         }
         item {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard("Attendance", "86%", "Across subjects", Icons.Default.CheckCircle, Modifier.weight(1f))
-                MetricCard("CGPA", "8.42", "Sample result", Icons.Default.Grade, Modifier.weight(1f))
+                MetricCard("Semester", "VII", "July–Dec 2026", Icons.Default.CheckCircle, Modifier.weight(1f))
+                MetricCard("Courses", "15", "Timetable course list", Icons.Default.Grade, Modifier.weight(1f))
             }
         }
         item {
@@ -214,8 +217,8 @@ private fun DashboardScreen(vm: PortalViewModel) {
                     Icon(Icons.Default.Info, null, tint = Green)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Prototype data", fontWeight = FontWeight.SemiBold, color = Green)
-                        Text("Connect an approved university API before relying on academic information.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                        Text("University data added", fontWeight = FontWeight.SemiBold, color = Green)
+                        Text("Academic calendar and Semester VII timetable are from your PDFs. Attendance and results still need official portal data.", color = Ink, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -225,7 +228,7 @@ private fun DashboardScreen(vm: PortalViewModel) {
 
 @Composable
 private fun MetricCard(title: String, value: String, caption: String, icon: ImageVector, modifier: Modifier = Modifier) {
-    Card(modifier, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(modifier, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Icon(icon, null, tint = Green)
             Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Ink)
@@ -245,7 +248,7 @@ private fun SectionTitle(title: String, action: String?, onAction: (() -> Unit)?
 
 @Composable
 private fun ScheduleRow(time: String, subject: String, room: String, accent: Color) {
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(4.dp).height(46.dp).clip(RoundedCornerShape(4.dp)).background(accent))
             Spacer(Modifier.width(12.dp))
@@ -260,7 +263,7 @@ private fun ScheduleRow(time: String, subject: String, room: String, accent: Col
 
 @Composable
 private fun QuickAction(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
         Column(Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, tint = Green, modifier = Modifier.size(25.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
@@ -282,11 +285,11 @@ private val attendanceSample = listOf(
 @Composable
 private fun AttendanceScreen() {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { PageHeader("Attendance", "Subject-wise overview · sample data") }
+        item { PageHeader("Attendance", "Official attendance is not connected yet") }
         item {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Overall attendance", color = Color(0xFFB8C7D9))
+                    Text("Sample attendance (not official)", color = Color(0xFFB8C7D9))
                     Text("86%", color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                     LinearProgressIndicator(progress = { 0.86f }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = Color(0xFF66D5A9), trackColor = Color(0xFF3C4A61))
                     Text("Illustrative value — not an official record", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
@@ -294,13 +297,13 @@ private fun AttendanceScreen() {
             }
         }
         items(attendanceSample) { item ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(item.subject, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                         Text("${item.percent}%", color = if (item.percent < 75) Color(0xFFB54735) else Green, fontWeight = FontWeight.Bold)
                     }
-                    LinearProgressIndicator(progress = { item.percent / 100f }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape), color = if (item.percent < 75) Color(0xFFCF6B58) else Green, trackColor = Canvas)
+                    LinearProgressIndicator(progress = { item.percent / 100f }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape), color = if (item.percent < 75) Color(0xFFCF6B58) else Green, trackColor = Color(0xFF26313E))
                     Text("${item.attended} attended out of ${item.total} classes", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -312,12 +315,12 @@ private fun AttendanceScreen() {
 private fun ResultsScreen() {
     val rows = listOf("Data Structures" to "A", "Software Engineering" to "A-", "Computer Networks" to "B+", "Artificial Intelligence" to "A", "Operating Systems" to "B+")
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("Results", "Semester overview · sample data") }
+        item { PageHeader("Results", "Official results are not connected yet") }
         item {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Ink)) {
                 Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Semester GPA", color = Color(0xFFB8C7D9))
+                        Text("Sample GPA (not official)", color = Color(0xFFB8C7D9))
                         Text("8.42", color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                         Text("Illustrative result", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
                     }
@@ -327,7 +330,7 @@ private fun ResultsScreen() {
         }
         item { Text("Subject grades", Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         items(rows) { row ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(16.dp)) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(row.first, Modifier.weight(1f), fontWeight = FontWeight.Medium)
                     Surface(color = PaleGreen, shape = RoundedCornerShape(10.dp)) {
@@ -341,16 +344,22 @@ private fun ResultsScreen() {
 
 private data class ClassItem(val time: String, val subject: String, val room: String, val faculty: String)
 private val classesSample = listOf(
-    ClassItem("09:00 AM", "Data Structures", "A-204", "Faculty details unavailable"),
-    ClassItem("11:00 AM", "Software Engineering", "B-106", "Faculty details unavailable"),
-    ClassItem("02:00 PM", "Computer Networks", "Lab C-12", "Faculty details unavailable"),
-    ClassItem("03:30 PM", "Artificial Intelligence", "A-112", "Faculty details unavailable")
+    ClassItem("09:00 AM", "3D Printing (ME350)", "LT14", "Dr. YK Modi · Monday"),
+    ClassItem("09:00 AM", "Knowledge Management (HS303)", "LT9", "Dr. Sandeep Srivastav · Monday"),
+    ClassItem("10:00 AM", "Image Processing (CS308)", "LT4", "Prof. Vipin Tyagi · Monday"),
+    ClassItem("11:00 AM", "Software Quality Management (CS304)", "LT11", "Dr. Dinesh Verma · Monday"),
+    ClassItem("12:00 PM", "Large Language Models & GenAI (CS310)", "LT1", "Dr. Malti Nagle · Monday"),
+    ClassItem("09:00 AM", "Legal & Ethical Issues in Business (HS011)", "LT1", "Dr. Sandeep Arya · Tuesday, Batch 2"),
+    ClassItem("10:00 AM", "Deep Learning (CS302)", "LT1", "Prof. Mahesh Kumar (BX/BY), Dr. Ankur Mudgal (BZ) · Tuesday"),
+    ClassItem("11:00 AM", "Introduction to Financial Management (HS009)", "LT11", "Dr. Shekhar Singh · Tuesday, Batch 1"),
+    ClassItem("12:00 PM", "Applied Accelerated Deep Learning (CS307)", "LT12", "Dr. Ankur Mudgal · Tuesday"),
+    ClassItem("03:00 PM", "Image Processing (CS308)", "LT11", "Wednesday, Batch 2")
 )
 
 @Composable
 private fun TimetableScreen() {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("Timetable", "Today's schedule · sample data") }
+        item { PageHeader("Timetable", "B.Tech VII Semester · July–December 2026") }
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("MON", "TUE", "WED", "THU", "FRI").forEachIndexed { index, day ->
@@ -364,7 +373,7 @@ private fun TimetableScreen() {
             }
         }
         items(classesSample) { item ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.width(88.dp)) {
                         Text(item.time, color = Green, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
@@ -384,26 +393,44 @@ private fun TimetableScreen() {
 
 private data class NoticeItem(val title: String, val detail: String, val category: String)
 private val noticesSample = listOf(
-    NoticeItem("Welcome to the portal prototype", "This notice is sample content and is not issued by JUET.", "APP"),
-    NoticeItem("Examination updates", "Official notices will appear here after an authorized backend is connected.", "ACADEMIC"),
-    NoticeItem("Timetable updates", "Check official university channels for the current timetable.", "CAMPUS")
+    NoticeItem("Test 2 (T-2)", "12–17 October 2026", "EXAM"),
+    NoticeItem("Proposed Technical Fest (JYC)", "29–31 October 2026", "CAMPUS"),
+    NoticeItem("Mid-semester / Deepawali break", "6–14 November 2026", "HOLIDAY"),
+    NoticeItem("Makeup test and Practical Examination P-2", "30 November–5 December 2026", "EXAM"),
+    NoticeItem("End-semester examination (T-3)", "7–12 December 2026", "EXAM"),
+    NoticeItem("Last date for evaluated T-3 answer scripts and result analysis", "19 December 2026", "ACADEMIC"),
+    NoticeItem("Result finalization and declaration by Registrar", "21 December 2026", "RESULT"),
+    NoticeItem("Semester declared closed", "21 December 2026", "ACADEMIC"),
+    NoticeItem("Winter vacation for students", "21 December 2026–3 January 2027", "HOLIDAY"),
+    NoticeItem("Supplementary exam registration", "1 January 2027", "EXAM"),
+    NoticeItem("Supplementary examination schedule", "2–5 January 2027", "EXAM"),
+    NoticeItem("Supplementary result declaration", "6 January 2027", "RESULT"),
+    NoticeItem("Next semester classes commence", "5 January 2027", "ACADEMIC"),
+    NoticeItem("Independence Day", "15 August 2026", "HOLIDAY"),
+    NoticeItem("Raksha Bandhan", "28 August 2026", "HOLIDAY"),
+    NoticeItem("Janmashtami", "4 September 2026", "HOLIDAY"),
+    NoticeItem("Mahatma Gandhi Jayanti", "2 October 2026", "HOLIDAY"),
+    NoticeItem("Dussehra", "20 October 2026", "HOLIDAY"),
+    NoticeItem("Deepawali", "8 November 2026", "HOLIDAY"),
+    NoticeItem("Govardhan Pooja", "9 November 2026", "HOLIDAY"),
+    NoticeItem("Christmas Day", "25 December 2026", "HOLIDAY")
 )
 
 @Composable
 private fun NoticesScreen() {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("Notices", "Updates and announcements") }
+        item { PageHeader("Academic calendar", "Odd semester 2026 · from SY.pdf") }
         item {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Info, null, tint = Green)
                     Spacer(Modifier.width(10.dp))
-                    Text("Sample notices only. No official university feed is connected.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                    Text("Dates transcribed from your uploaded academic calendar. Check university updates for any revisions.", color = Ink, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
         items(noticesSample) { notice ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(notice.category, color = Green, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     Text(notice.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -417,9 +444,9 @@ private fun NoticesScreen() {
 @Composable
 private fun ProfileScreen(vm: PortalViewModel) {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { PageHeader("My profile", "Account and preferences") }
+        item { PageHeader("My profile", "Student details and app status") }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.size(76.dp).clip(CircleShape).background(PaleGreen), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Person, null, tint = Green, modifier = Modifier.size(42.dp))
@@ -431,12 +458,12 @@ private fun ProfileScreen(vm: PortalViewModel) {
             }
         }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
                 Column {
                     ProfileLine(Icons.Default.School, "Institution", "Jaypee University of Engineering and Technology")
-                    HorizontalDivider(color = Canvas)
+                    HorizontalDivider(color = Color(0xFF26313E))
                     ProfileLine(Icons.Default.Security, "Authentication", "Demo mode")
-                    HorizontalDivider(color = Canvas)
+                    HorizontalDivider(color = Color(0xFF26313E))
                     ProfileLine(Icons.Default.CloudOff, "Backend", "Not connected")
                 }
             }
