@@ -1,4 +1,4 @@
-package in.juet.studentportal
+package `in`.juet.studentportal
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -260,7 +260,7 @@ private fun ScheduleRow(time: String, subject: String, room: String, accent: Col
 
 @Composable
 private fun QuickAction(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(modifier, onClick = onClick, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
         Column(Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(icon, null, tint = Green, modifier = Modifier.size(25.dp))
             Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
