@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
@@ -77,6 +78,10 @@ enum class PortalTab(val label: String, val icon: ImageVector) {
     Results("Results", Icons.Default.School),
     Timetable("Timetable", Icons.Default.CalendarMonth),
     Notices("Notices", Icons.Default.Notifications),
+    Website("JUET Info", Icons.Default.Language),
+    PdfTimetable("S7 PDF", Icons.Default.CalendarMonth),
+    Curriculum("Curriculum", Icons.Default.MenuBook),
+    AcademicCalendar("Calendar PDF", Icons.Default.EventNote),
     Profile("Profile", Icons.Default.Person)
 }
 
@@ -191,6 +196,10 @@ private fun PortalScaffold(vm: PortalViewModel) {
                     PortalTab.Results -> ResultsScreen()
                     PortalTab.Timetable -> TimetableScreen()
                     PortalTab.Notices -> NoticesScreen()
+                    PortalTab.Website -> WebsiteInfoScreen(vm)
+                    PortalTab.PdfTimetable -> PdfTimetableScreen(vm)
+                    PortalTab.Curriculum -> CurriculumScreen(vm)
+                    PortalTab.AcademicCalendar -> PdfAcademicCalendarScreen(vm)
                     PortalTab.Profile -> ProfileScreen(vm)
                 }
             }
@@ -252,6 +261,19 @@ private fun DashboardScreen(vm: PortalViewModel) {
                 QuickAction("Attendance", Icons.Default.FactCheck, Modifier.weight(1f)) { vm.navigate(PortalTab.Attendance) }
                 QuickAction("Results", Icons.Default.School, Modifier.weight(1f)) { vm.navigate(PortalTab.Results) }
                 QuickAction("Notices", Icons.Default.Campaign, Modifier.weight(1f)) { vm.navigate(PortalTab.Notices) }
+            }
+        }
+        item {
+            SectionTitle("JUET & PDF resources", "OPEN", null)
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    QuickAction("JUET website", Icons.Default.Language, Modifier.weight(1f)) { vm.navigate(PortalTab.Website) }
+                    QuickAction("S7 timetable", Icons.Default.CalendarMonth, Modifier.weight(1f)) { vm.navigate(PortalTab.PdfTimetable) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    QuickAction("B.Tech curriculum", Icons.Default.MenuBook, Modifier.weight(1f)) { vm.navigate(PortalTab.Curriculum) }
+                    QuickAction("Academic calendar", Icons.Default.EventNote, Modifier.weight(1f)) { vm.navigate(PortalTab.AcademicCalendar) }
+                }
             }
         }
         item {
@@ -444,6 +466,183 @@ private fun TimetableScreen() {
     }
 }
 
+
+@Composable
+private fun WebsiteInfoScreen(vm: PortalViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { PageHeader("JUET public information", "Useful official information · automatic feed check every minute") }
+        item {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Latest notices", color = Green, fontWeight = FontWeight.Bold)
+                    Text("This screen links to the official JUET source. The app checks its mirrored feed every 60 seconds; the website mirror itself updates when the scheduled sync succeeds.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item { ResourceLinkCard("Announcements & results", "Exam results, fee/registration notices, hostel notices and internships", "https://www.juet.ac.in/jaypee/announcement") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item { ResourceLinkCard("Academic calendar", "Semester schedule, examinations and holidays", "https://www.juet.ac.in/jaypee/Acalendar") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item { ResourceLinkCard("Scholarships", "Published scholarship eligibility and conditions", "https://www.juet.ac.in/jaypee/UniversityScholarship") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item { ResourceLinkCard("Placements & internships", "Placement cell information and career announcements", "https://www.juet.ac.in/jaypee/training-placement-cell") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item { ResourceLinkCard("Faculty and contact directory", "Official faculty details, phone numbers and email", "https://www.juet.ac.in/jaypee/contactus") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item { ResourceLinkCard("Student Web Kiosk", "Open the university student portal (official login)", "https://webkiosk.juet.ac.in/") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item { ResourceLinkCard("JUET home page", "Open the official university website", "https://www.juet.ac.in/") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) } }
+        item {
+            OutlinedButton(onClick = { vm.navigate(PortalTab.Notices) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Icon(Icons.Default.Notifications, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Open live notices feed")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PdfTimetableScreen(vm: PortalViewModel) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { PageHeader("Semester VII timetable", "From S7.pdf · July–December 2026") }
+        item {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Timetable reference", color = Green, fontWeight = FontWeight.Bold)
+                    Text("B.Tech VII Semester · groups BX (B1–B4), BY (B5–B8), BZ (B9–B12), plus Batch 1 (B1–B6) and Batch 2 (B7–B12).", color = Ink)
+                    Text("Periods shown in the PDF run from 9:00 AM through 4:55 PM. Check the original timetable for the correct day, batch, group, lab and room before attending.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item { SectionTitle("Course and faculty directory", null, null) }
+        items(listOf(
+            "CE332 · Introduction to Sustainability" to "Dr. V.S. Babu",
+            "HS303 · Knowledge Management" to "Dr. Sandeep Srivastav",
+            "MA301 · Operations Research" to "Dr. Divya Jain",
+            "ME350 · 3D Printing" to "Dr. YK Modi",
+            "HS009 · Introduction to Financial Management" to "Dr. Shekhar Singh",
+            "HS011 · Legal and Ethical Issues in Business" to "Dr. Sandeep Arya",
+            "HS005 · Academic Research and Paper Writing" to "Dr. Kedari Lal Dhaker",
+            "CS302 · Deep Learning" to "Prof. Mahesh Kumar (BX/BY); Dr. Ankur Mudgal (BZ)",
+            "CS308 · Image Processing" to "Prof. Vipin Tyagi",
+            "CS306 · Transformer Models" to "Ms. Reenu Rajput",
+            "CS305 · AI Enabled Software Engineering" to "Dr. Neha Sharma",
+            "CS307 · Applied Accelerated Deep Learning" to "Dr. Ankur Mudgal",
+            "CS310 · Large Language Models and Generative AI" to "Dr. Malti Nagle",
+            "CS311 · Generative AI" to "Ms. Sarita Sahni",
+            "CS304 · Software Quality Management" to "Dr. Dinesh Verma"
+        )) { row ->
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(row.first, fontWeight = FontWeight.SemiBold, color = Ink)
+                    Text(row.second, color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
+            Text("The PDF's timetable uses short course labels and batch-specific room codes. This screen summarizes the course/faculty list; use the original PDF for the full grid and exact daily periods.", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        item {
+            ResourceLinkCard("Back to dashboard", "Return to the app's timetable screen", "https://www.juet.ac.in/") { vm.navigate(PortalTab.Timetable) }
+        }
+    }
+}
+
+@Composable
+private fun CurriculumScreen(vm: PortalViewModel) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { PageHeader("B.Tech CSE curriculum", "From B.T.pdf · 8-semester course structure") }
+        item {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Program overview", color = Green, fontWeight = FontWeight.Bold)
+                    Text("The uploaded curriculum lists 160 total credits for the B.Tech CSE program, including theory, laboratories, electives, value-added courses, training and projects.", color = Ink)
+                    Text("Value-added courses do not count toward CGPA. The document notes optional industrial training after Semester II, four weeks after Semester IV, and six weeks after Semester VI (evaluated in Semester VII).", color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item { SectionTitle("Semester-wise subjects", null, null) }
+        items(listOf(
+            "Semester I" to "Engineering Mathematics, Engineering Physics-I, English, Computer Programming, Physics Lab-I, Computer Programming Lab, Workshop Practices.",
+            "Semester II" to "Life Skills and Effective Communication, Discrete Mathematics, Engineering Physics-II, Electrical Science, Object Oriented Programming and associated labs.",
+            "Semester III" to "Techniques for Decision Making, Data Structures, Digital Systems and Microprocessors, Database Systems, Environmental Science, UI/UX Lab and programming labs.",
+            "Semester IV" to "HSS Elective-I, Software Engineering, Algorithms and Problem Solving, Computer Organisation and Architecture, Machine Learning and labs.",
+            "Semester V" to "HSS Elective-2, Probability Theory and Random Processes, Discipline Elective-1, Computer Networks, Theory of Computation, Science Elective, Minor Project-1 and labs.",
+            "Semester VI" to "HSS Elective-3, Operating Systems, Compiler Design, Discipline Elective-2, Minor Project-2 and labs.",
+            "Semester VII" to "Open Elective-1, CS Electives 3–5, Major Project Part-I and Summer Training Viva.",
+            "Semester VIII" to "Open Elective-2, CS Electives 6–7 and Major Project Part-II."
+        )) { row ->
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(row.first, fontWeight = FontWeight.Bold, color = Green)
+                    Text(row.second, color = Ink, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+        item {
+            Text("Use the original curriculum PDF for exact course codes, L/T/P contact hours, credit values and elective choices; the summaries above are extracted highlights, not a replacement for the official document.", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        item {
+            OutlinedButton(onClick = { vm.navigate(PortalTab.PdfTimetable) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text("View Semester VII course/faculty list") }
+        }
+    }
+}
+
+@Composable
+private fun PdfAcademicCalendarScreen(vm: PortalViewModel) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { PageHeader("Academic calendar", "From SY.pdf · semester planning") }
+        item {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Calendar highlights", color = Green, fontWeight = FontWeight.Bold)
+                    Text("Use the uploaded academic calendar as the reference for semester dates, examination periods, holidays and university deadlines.", color = Ink)
+                    Text("The app currently summarizes key events from the calendar; verify changes against the latest official JUET announcement before relying on a date.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item { SectionTitle("Semester VII · July–December 2026", null, null) }
+        items(listOf(
+            "12–17 October 2026" to "Test 2 (T-2)",
+            "29–31 October 2026" to "Proposed Technical Fest (JYC)",
+            "6–14 November 2026" to "Mid-semester / Deepawali break",
+            "30 November–5 December 2026" to "Makeup test and Practical Examination P-2",
+            "7–12 December 2026" to "End-semester examination (T-3)",
+            "19 December 2026" to "Deadline for evaluated T-3 scripts and result analysis",
+            "21 December 2026" to "Result finalization and semester closure",
+            "21 December 2026–3 January 2027" to "Winter vacation",
+            "5 January 2027" to "Next semester classes commence"
+        )) { row ->
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(16.dp)) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(row.second, color = Ink, fontWeight = FontWeight.SemiBold)
+                        Text(row.first, color = Green, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.Default.Event, null, tint = Green)
+                }
+            }
+        }
+        item {
+            Text("These dates come from the currently loaded academic-calendar notes. Confirm the latest official PDF/notices in case the university revises the schedule.", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        item {
+            ResourceLinkCard("Open official JUET calendar", "Check the university's latest published calendar", "https://www.juet.ac.in/jaypee/Acalendar") { androidx.compose.ui.platform.LocalContext.current.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+        }
+    }
+}
+
+@Composable
+private fun ResourceLinkCard(title: String, detail: String, url: String, onOpen: (String) -> Unit) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.OpenInNew, null, tint = Green, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold, color = Ink)
+                Text(detail, color = Muted, style = MaterialTheme.typography.bodySmall)
+            }
+            IconButton(onClick = { onOpen(url) }) { Icon(Icons.Default.ChevronRight, "Open") }
+        }
+    }
+}
+
 private data class NoticeItem(val title: String, val detail: String, val category: String, val url: String = "")
 private val noticesSample = listOf(
     NoticeItem("Test 2 (T-2)", "12–17 October 2026", "EXAM"),
@@ -476,36 +675,43 @@ private fun NoticesScreen() {
     var lastUpdated by remember { mutableStateOf("Loading latest university updates…") }
 
     LaunchedEffect(Unit) {
-        val result = withContext(Dispatchers.IO) {
-            runCatching {
-                val connection = URL("https://raw.githubusercontent.com/RISHABH12005/JUET-App/main/juet_public_info.json")
-                    .openConnection()
-                connection.connectTimeout = 8000
-                connection.readTimeout = 8000
-                val body = connection.getInputStream().bufferedReader().use { it.readText() }
-                val json = JSONObject(body)
-                val announcements = json.optJSONArray("announcements")
-                val parsed = buildList {
-                    if (announcements != null) {
-                        for (i in 0 until announcements.length()) {
-                            val item = announcements.optJSONObject(i) ?: continue
-                            add(NoticeItem(
-                                title = item.optString("title", "University announcement"),
-                                detail = item.optString("date", item.optString("summary", "Official JUET website update")),
-                                category = "OFFICIAL",
-                                url = item.optString("url", "")
-                            ))
+        while (true) {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val connection = URL("https://raw.githubusercontent.com/RISHABH12005/JUET-App/main/juet_public_info.json")
+                        .openConnection()
+                    connection.connectTimeout = 8000
+                    connection.readTimeout = 8000
+                    connection.setRequestProperty("Cache-Control", "no-cache")
+                    val body = connection.getInputStream().bufferedReader().use { it.readText() }
+                    val json = JSONObject(body)
+                    val announcements = json.optJSONArray("announcements")
+                    val parsed = buildList {
+                        if (announcements != null) {
+                            for (i in 0 until announcements.length()) {
+                                val item = announcements.optJSONObject(i) ?: continue
+                                add(NoticeItem(
+                                    title = item.optString("title", "University announcement"),
+                                    detail = item.optString("date", item.optString("summary", "Official JUET website update")),
+                                    category = "OFFICIAL",
+                                    url = item.optString("url", "")
+                                ))
+                            }
                         }
                     }
+                    parsed to json.optString("updatedAt", "Recently checked")
                 }
-                parsed to json.optString("updatedAt", "Recently checked")
             }
-        }
-        result.onSuccess { (items, updated) ->
-            liveNotices = items
-            lastUpdated = "Latest official-site sync: $updated"
-        }.onFailure {
-            lastUpdated = "Live sync unavailable. Official links below remain available."
+            result.onSuccess { (items, updated) ->
+                liveNotices = items
+                lastUpdated = "Feed checked: " + java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()) +
+                    " · Source sync: $updated · checks every 1 min"
+            }.onFailure {
+                lastUpdated = "Could not refresh feed. Last checked: " +
+                    java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()) +
+                    " · Official website links remain available."
+            }
+            delay(60_000)
         }
     }
 
