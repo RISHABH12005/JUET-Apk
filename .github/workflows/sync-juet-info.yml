@@ -3,7 +3,7 @@ name: Sync JUET public information
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 2 * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Extract public announcements and calendar links
+      - name: Refresh public announcements and calendar links
         run: python scripts/sync_juet_public_info.py
       - name: Commit changed public information
         run: |
