@@ -539,7 +539,7 @@ private fun PdfTimetableScreen(vm: PortalViewModel) {
             Text("The PDF's timetable uses short course labels and batch-specific room codes. This screen summarizes the course/faculty list; use the original PDF for the full grid and exact daily periods.", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.bodySmall)
         }
         item {
-            ResourceLinkCard("Back to dashboard", "Return to the app's timetable screen", "https://www.juet.ac.in/") { vm.navigate(PortalTab.Timetable) }
+            OutlinedButton(onClick = { vm.navigate(PortalTab.Timetable) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { Text("Open timetable screen") }
         }
     }
 }
@@ -586,6 +586,7 @@ private fun CurriculumScreen(vm: PortalViewModel) {
 
 @Composable
 private fun PdfAcademicCalendarScreen(vm: PortalViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { PageHeader("Academic calendar", "From SY.pdf · semester planning") }
         item {
@@ -623,7 +624,7 @@ private fun PdfAcademicCalendarScreen(vm: PortalViewModel) {
             Text("These dates come from the currently loaded academic-calendar notes. Confirm the latest official PDF/notices in case the university revises the schedule.", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.bodySmall)
         }
         item {
-            ResourceLinkCard("Open official JUET calendar", "Check the university's latest published calendar", "https://www.juet.ac.in/jaypee/Acalendar") { androidx.compose.ui.platform.LocalContext.current.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+            ResourceLinkCard("Open official JUET calendar", "Check the university's latest published calendar", "https://www.juet.ac.in/jaypee/Acalendar") { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
         }
     }
 }
