@@ -5,6 +5,16 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,6 +29,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
@@ -145,7 +156,18 @@ private fun PortalScaffold(vm: PortalViewModel) {
                     NavigationBarItem(
                         selected = vm.selectedTab == tab,
                         onClick = { vm.navigate(tab) },
-                        icon = { Icon(tab.icon, contentDescription = tab.label) },
+                        icon = {
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (vm.selectedTab == tab) 1.12f else 1f,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "navigation_icon_scale"
+                            )
+                            Icon(
+                                tab.icon,
+                                contentDescription = tab.label,
+                                modifier = Modifier.graphicsLayer(scaleX = iconScale, scaleY = iconScale)
+                            )
+                        },
                         label = { Text(tab.label, maxLines = 1) }
                     )
                 }
@@ -153,13 +175,24 @@ private fun PortalScaffold(vm: PortalViewModel) {
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            when (vm.selectedTab) {
-                PortalTab.Home -> DashboardScreen(vm)
-                PortalTab.Attendance -> AttendanceScreen()
-                PortalTab.Results -> ResultsScreen()
-                PortalTab.Timetable -> TimetableScreen()
-                PortalTab.Notices -> NoticesScreen()
-                PortalTab.Profile -> ProfileScreen(vm)
+            AnimatedContent(
+                targetState = vm.selectedTab,
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(220)) +
+                        slideInVertically(initialOffsetY = { it / 14 }, animationSpec = tween(220))) togetherWith
+                        (fadeOut(animationSpec = tween(140)) +
+                            slideOutVertically(targetOffsetY = { -it / 18 }, animationSpec = tween(140)))
+                },
+                label = "portal_tab_transition"
+            ) { tab ->
+                when (tab) {
+                    PortalTab.Home -> DashboardScreen(vm)
+                    PortalTab.Attendance -> AttendanceScreen()
+                    PortalTab.Results -> ResultsScreen()
+                    PortalTab.Timetable -> TimetableScreen()
+                    PortalTab.Notices -> NoticesScreen()
+                    PortalTab.Profile -> ProfileScreen(vm)
+                }
             }
         }
     }
@@ -185,13 +218,13 @@ private fun DashboardScreen(vm: PortalViewModel) {
             })
         }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Ink)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A))) {
                 Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("STUDENT OVERVIEW", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.labelMedium)
-                        Text("Welcome back", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("B.Tech CSE · Semester VII", color = Color(0xFFE1E8F0))
-                        Text("Timetable and calendar sourced from your uploaded PDFs", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
+                        Text("STUDENT OVERVIEW", color = Green, style = MaterialTheme.typography.labelMedium)
+                        Text("Welcome back", color = Ink, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("B.Tech CSE · Semester VII", color = Ink)
+                        Text("Timetable and calendar sourced from your uploaded PDFs", color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
                     Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF29415C)), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.School, null, tint = Color.White, modifier = Modifier.size(30.dp))
@@ -297,12 +330,13 @@ private fun AttendanceScreen() {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { PageHeader("Attendance", "Official attendance is not connected yet") }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Ink), shape = RoundedCornerShape(22.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A)), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Sample attendance (not official)", color = Color(0xFFB8C7D9))
-                    Text("86%", color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-                    LinearProgressIndicator(progress = { 0.86f }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = Color(0xFF66D5A9), trackColor = Color(0xFF3C4A61))
-                    Text("Illustrative value — not an official record", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
+                    Text("Sample attendance (not official)", color = Muted)
+                    Text("86%", color = Ink, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                    val attendanceProgress by animateFloatAsState(targetValue = 0.86f, animationSpec = tween(durationMillis = 900, delayMillis = 120), label = "attendance_summary_progress")
+                    LinearProgressIndicator(progress = { attendanceProgress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = Green, trackColor = Color(0xFF3C4A61))
+                    Text("Illustrative value — not an official record", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -313,7 +347,12 @@ private fun AttendanceScreen() {
                         Text(item.subject, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                         Text("${item.percent}%", color = if (item.percent < 75) Color(0xFFB54735) else Green, fontWeight = FontWeight.Bold)
                     }
-                    LinearProgressIndicator(progress = { item.percent / 100f }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape), color = if (item.percent < 75) Color(0xFFCF6B58) else Green, trackColor = Color(0xFF26313E))
+                    val subjectProgress by animateFloatAsState(
+                        targetValue = item.percent / 100f,
+                        animationSpec = tween(durationMillis = 850, delayMillis = 100),
+                        label = "subject_attendance_progress"
+                    )
+                    LinearProgressIndicator(progress = { subjectProgress }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape), color = if (item.percent < 75) Color(0xFFCF6B58) else Green, trackColor = Color(0xFF26313E))
                     Text("${item.attended} attended out of ${item.total} classes", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -327,12 +366,12 @@ private fun ResultsScreen() {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { PageHeader("Results", "Official results are not connected yet") }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Ink)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A))) {
                 Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("Sample GPA (not official)", color = Color(0xFFB8C7D9))
-                        Text("8.42", color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-                        Text("Illustrative result", color = Color(0xFFB8C7D9), style = MaterialTheme.typography.bodySmall)
+                        Text("Sample GPA (not official)", color = Muted)
+                        Text("8.42", color = Ink, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                        Text("Illustrative result", color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
                     Icon(Icons.Default.WorkspacePremium, null, tint = Color(0xFF80DDB9), modifier = Modifier.size(42.dp))
                 }
@@ -373,10 +412,14 @@ private fun TimetableScreen() {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("MON", "TUE", "WED", "THU", "FRI").forEachIndexed { index, day ->
-                    Surface(modifier = Modifier.weight(1f), color = if (index == 0) Green else Color.White, shape = RoundedCornerShape(12.dp)) {
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        color = if (index == 0) Green else CardBg,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
                         Column(Modifier.padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(day, color = if (index == 0) Color.White else Muted, style = MaterialTheme.typography.labelSmall)
-                            Text("${13 + index}", color = if (index == 0) Color.White else Ink, fontWeight = FontWeight.Bold)
+                            Text(day, color = if (index == 0) Color(0xFF06271F) else Muted, style = MaterialTheme.typography.labelSmall)
+                            Text("${13 + index}", color = if (index == 0) Color(0xFF06271F) else Ink, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
