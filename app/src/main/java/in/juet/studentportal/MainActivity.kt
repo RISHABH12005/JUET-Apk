@@ -1,6 +1,8 @@
 package `in`.juet.studentportal
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -23,6 +25,10 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.URL
 
 private val Ink = Color(0xFFE7EDF5)
 private val Green = Color(0xFF69D7B0)
@@ -391,7 +397,7 @@ private fun TimetableScreen() {
     }
 }
 
-private data class NoticeItem(val title: String, val detail: String, val category: String)
+private data class NoticeItem(val title: String, val detail: String, val category: String, val url: String = "")
 private val noticesSample = listOf(
     NoticeItem("Test 2 (T-2)", "12–17 October 2026", "EXAM"),
     NoticeItem("Proposed Technical Fest (JYC)", "29–31 October 2026", "CAMPUS"),
@@ -418,25 +424,128 @@ private val noticesSample = listOf(
 
 @Composable
 private fun NoticesScreen() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var liveNotices by remember { mutableStateOf<List<NoticeItem>>(emptyList()) }
+    var lastUpdated by remember { mutableStateOf("Loading latest university updates…") }
+
+    LaunchedEffect(Unit) {
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                val connection = URL("https://raw.githubusercontent.com/RISHABH12005/JUET-App/main/juet_public_info.json")
+                    .openConnection()
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                val body = connection.getInputStream().bufferedReader().use { it.readText() }
+                val json = JSONObject(body)
+                val announcements = json.optJSONArray("announcements")
+                val parsed = buildList {
+                    if (announcements != null) {
+                        for (i in 0 until announcements.length()) {
+                            val item = announcements.optJSONObject(i) ?: continue
+                            add(NoticeItem(
+                                title = item.optString("title", "University announcement"),
+                                detail = item.optString("date", item.optString("summary", "Official JUET website update")),
+                                category = "OFFICIAL",
+                                url = item.optString("url", "")
+                            ))
+                        }
+                    }
+                }
+                parsed to json.optString("updatedAt", "Recently checked")
+            }
+        }
+        result.onSuccess { (items, updated) ->
+            liveNotices = items
+            lastUpdated = "Latest official-site sync: $updated"
+        }.onFailure {
+            lastUpdated = "Live sync unavailable. Official links below remain available."
+        }
+    }
+
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("Academic calendar", "Odd semester 2026 · from SY.pdf") }
+        item { PageHeader("JUET updates", "Public announcements and useful links") }
         item {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = Green)
-                    Spacer(Modifier.width(10.dp))
-                    Text("Dates transcribed from your uploaded academic calendar. Check university updates for any revisions.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(lastUpdated, color = Green, style = MaterialTheme.typography.labelMedium)
+                    Text("Announcements are fetched from the public JUET website index mirrored by this project's daily sync. Student-specific attendance, marks and fees are not included.", color = Ink, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        items(noticesSample) { notice ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(notice.category, color = Green, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    Text(notice.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(notice.detail, color = Muted, style = MaterialTheme.typography.bodyMedium)
+        if (liveNotices.isEmpty()) {
+            item {
+                Text("Recent public announcements", Modifier.padding(horizontal = 20.dp), color = Muted, style = MaterialTheme.typography.titleMedium)
+            }
+            items(noticesSample) { notice ->
+                NoticeCard(notice) { url ->
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 }
             }
+        } else {
+            items(liveNotices) { notice ->
+                NoticeCard(notice) { url ->
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                }
+            }
+        }
+        item {
+            Text("Official JUET links", Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        item {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
+                Column {
+                    OfficialLinkRow("Academic calendar", "juet.ac.in/jaypee/Acalendar", "https://www.juet.ac.in/jaypee/Acalendar") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                    HorizontalDivider(color = Color(0xFF26313E))
+                    OfficialLinkRow("Announcements & results", "Latest notices from JUET", "https://www.juet.ac.in/jaypee/Announcement") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                    HorizontalDivider(color = Color(0xFF26313E))
+                    OfficialLinkRow("Curriculum", "Programs and course curriculum", "https://www.juet.ac.in/") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                    HorizontalDivider(color = Color(0xFF26313E))
+                    OfficialLinkRow("Student web kiosk", "webkiosk.juet.ac.in", "https://webkiosk.juet.ac.in/") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                    HorizontalDivider(color = Color(0xFF26313E))
+                    OfficialLinkRow("University webmail", "webmail.juet.ac.in", "https://webmail.juet.ac.in/") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                    HorizontalDivider(color = Color(0xFF26313E))
+                    OfficialLinkRow("Contact JUET", "Phone, email and campus address", "https://www.juet.ac.in/jaypee/contactus") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
+                }
+            }
+        }
+        item {
+            Text("Contact information", Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        item {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("JUET, A-B Road, Raghogarh, District Guna, Madhya Pradesh 473226", color = Ink)
+                    Text("Main phone: +91 7544 267051 / 267310 / 267311 / 267312", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Text("Admission helpline: +91 8982129100", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Text("Registrar office: +91 8982129108", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Text("Email: contact@juet.ac.in", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Text("Admission email: admissions@juet.ac.in", color = Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoticeCard(notice: NoticeItem, onOpen: (String) -> Unit) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(notice.category, color = Green, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Text(notice.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(notice.detail, color = Muted, style = MaterialTheme.typography.bodyMedium)
+            if (notice.url.startsWith("https://")) {
+                TextButton(onClick = { onOpen(notice.url) }) { Text("Open official notice") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OfficialLinkRow(title: String, subtitle: String, url: String, onOpen: (String) -> Unit) {
+    TextButton(onClick = { onOpen(url) }, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+            Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
