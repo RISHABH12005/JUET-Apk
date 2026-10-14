@@ -29,7 +29,7 @@ class AnchorParser(HTMLParser):
             self.parts.append(data.strip())
     def handle_endtag(self, tag):
         if tag == "a" and self.href is not None:
-            title = re.sub(r"\\s+", " ", " ".join(x for x in self.parts if x)).strip()
+            title = re.sub(r"\s+, " ", " ".join(x for x in self.parts if x)).strip()
             if title and self.href and not title.lower() in {"view file", "click here"}:
                 self.items.append((title, urljoin(BASE, self.href)))
             self.href = None
@@ -70,7 +70,7 @@ def main():
     }
     with open(OUT, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
-        handle.write("\\n")
+        handle.write("\n")
     print(f"Wrote {len(payload['announcements'])} public links to {OUT}")
 
 if __name__ == "__main__":
