@@ -1,4 +1,4 @@
-package in.juet.studentportal.data
+package `in`.juet.studentportal.data
 
 import com.google.gson.annotations.SerializedName
 import retrofit2.Retrofit
