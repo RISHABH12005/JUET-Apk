@@ -1,0 +1,33 @@
+name: Sync JUET public information
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Extract public announcements and calendar links
+        run: python scripts/sync_juet_public_info.py
+      - name: Commit changed public information
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add juet_public_info.json
+          if git diff --cached --quiet; then
+            echo "No public information changes."
+          else
+            git commit -m "chore: sync public JUET information"
+            git push
+          fi
