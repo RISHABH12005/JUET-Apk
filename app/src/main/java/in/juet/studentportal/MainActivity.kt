@@ -49,7 +49,7 @@ private fun PortalTheme(content: @Composable () -> Unit) {
     )
 }
 
-private enum class PortalTab(val label: String, val icon: ImageVector) {
+enum class PortalTab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Default.Home),
     Attendance("Attendance", Icons.Default.CheckCircle),
     Results("Results", Icons.Default.School),
