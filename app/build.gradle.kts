@@ -15,7 +15,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("boolean", "DEMO_MODE", "true")
-        buildConfigField("String", "API_BASE_URL", "\"https://api.example.com/\"")
+        buildConfigField("String", "PUBLIC_INFO_URL", "\"https://raw.githubusercontent.com/RISHABH12005/JUET-Apk/main/juet_public_info.json\"")
     }
 
     buildFeatures {
