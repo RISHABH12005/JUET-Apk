@@ -471,12 +471,12 @@ private fun TimetableScreen() {
 private fun WebsiteInfoScreen(vm: PortalViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("JUET public information", "Useful official information · automatic feed check every minute") }
+        item { PageHeader("JUET public information", "Useful official information · public website feed check every minute") }
         item {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Latest notices", color = Green, fontWeight = FontWeight.Bold)
-                    Text("This screen links to the official JUET source. The app checks its mirrored feed every 60 seconds; the website mirror itself updates when the scheduled sync succeeds.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                    Text("This screen links to the official JUET source. The app checks its mirrored feed every 60 seconds; the mirror refreshes when the scheduled GitHub Actions sync succeeds.", color = Ink, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -679,7 +679,7 @@ private fun NoticesScreen() {
         while (true) {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val connection = URL("https://raw.githubusercontent.com/RISHABH12005/JUET-App/main/juet_public_info.json")
+                    val connection = URL("https://raw.githubusercontent.com/RISHABH12005/JUET-Apk/main/juet_public_info.json")
                         .openConnection()
                     connection.connectTimeout = 8000
                     connection.readTimeout = 8000
@@ -722,7 +722,7 @@ private fun NoticesScreen() {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(lastUpdated, color = Green, style = MaterialTheme.typography.labelMedium)
-                    Text("Announcements are fetched from the public JUET website index mirrored by this project's daily sync. Student-specific attendance, marks and fees are not included.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                    Text("Announcements are fetched from the public JUET website index mirrored by this project's GitHub Actions sync (scheduled every five minutes). Student-specific attendance, marks and fees are not included.", color = Ink, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
