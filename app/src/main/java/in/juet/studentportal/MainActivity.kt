@@ -679,7 +679,7 @@ private fun NoticesScreen() {
         while (true) {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val connection = URL("https://raw.githubusercontent.com/RISHABH12005/JUET-Apk/main/juet_public_info.json")
+                    val connection = URL(BuildConfig.PUBLIC_INFO_URL)
                         .openConnection()
                     connection.connectTimeout = 8000
                     connection.readTimeout = 8000
@@ -722,7 +722,7 @@ private fun NoticesScreen() {
             Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(lastUpdated, color = Green, style = MaterialTheme.typography.labelMedium)
-                    Text("Announcements are fetched from the public JUET website index mirrored by this project's GitHub Actions sync (scheduled every five minutes). Student-specific attendance, marks and fees are not included.", color = Ink, style = MaterialTheme.typography.bodySmall)
+                    Text("Announcements are fetched from the public JUET website index mirrored by this project's GitHub Actions sync (scheduled every five minutes). Private student attendance, marks, fees and profile records are not included.", color = Ink, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -827,7 +827,7 @@ private fun ProfileScreen(vm: PortalViewModel) {
                     HorizontalDivider(color = Color(0xFF26313E))
                     ProfileLine(Icons.Default.Security, "Authentication", "Demo mode")
                     HorizontalDivider(color = Color(0xFF26313E))
-                    ProfileLine(Icons.Default.CloudOff, "Backend", "Not connected")
+                    ProfileLine(Icons.Default.Cloud, "Public data feed", "Connected · official public JUET links")
                 }
             }
         }
