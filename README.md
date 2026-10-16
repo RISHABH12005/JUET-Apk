@@ -1,8 +1,8 @@
 # JUET Student Portal — Native Android App
 
-A native Android application prototype for a modern, student-focused JUET portal interface.
+A native Android app that embeds the official JUET Student Portal for live, user-initiated testing, alongside public university information and academic PDF resources.
 
-**Status:** UI prototype with illustrative sample data. This is not an official JUET app and is not currently connected to university services. Do not enter real JUET credentials.
+**Status:** Independent student project, not an official JUET app. The Live Portal screen loads the official student portal in an Android WebView; sign-in and private records are handled by the university website. Test only with your own authorized student account.
 
 ## Features in this prototype
 
@@ -11,7 +11,7 @@ A native Android application prototype for a modern, student-focused JUET portal
 - Semester results and sample grades
 - Weekly timetable
 - Notices screen
-- Student profile and demo sign-in
+- Live official student portal WebView with JavaScript, DOM storage, navigation history and reload
 
 ## Tech stack
 
@@ -31,13 +31,13 @@ A native Android application prototype for a modern, student-focused JUET portal
 
 ## JUET backend integration
 
-The app now uses a public-information feed generated from the official JUET website and mirrored in `juet_public_info.json`. GitHub Actions attempts to refresh this feed every five minutes, and the Android app checks the feed every minute while the Notices screen is open. Actual freshness depends on the source website and successful sync runs. The feed contains public links and announcements only; it is not an official JUET API.
+The app opens `https://studentportal.juet.ac.in/studentportal/#/` inside a WebView for live portal testing. It also uses a public-information feed generated from the official JUET website and mirrored in `juet_public_info.json`. GitHub Actions attempts to refresh this feed every five minutes, and the Android app checks the feed every minute while the Notices screen is open. Actual freshness depends on the source website and successful sync runs. The feed contains public links and announcements only; it is not an official JUET API.
 
 The official student portal's private backend has not been connected because no authorized API documentation or endpoint has been verified. Attendance, marks, fee balances, registered courses and personal profile data still require an approved university API or backend integration. Request authorization and API documentation from JUET administrators before connecting these records.
 
 ## Security
 
-- Do not enter your real JUET password in the current demo.
-- No official university credentials are transmitted by the demo sign-in.
-- No university records are fetched.
+- The Live Portal screen sends sign-in data only to the official portal through its own page; the native app does not scrape credentials from the page.
+- Attendance, marks, fees and profile values are not parsed into native app screens; use the official portal's own views.
+- Do not share credentials or test accounts. Report any portal login or WebView incompatibility before relying on the app.
 - Never embed API secrets in the Android application.
