@@ -3,7 +3,12 @@ package `in`.juet.studentportal
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -27,6 +32,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -74,6 +80,7 @@ private fun PortalTheme(content: @Composable () -> Unit) {
 
 enum class PortalTab(val label: String, val icon: ImageVector) {
     Home("Home", Icons.Default.Home),
+    StudentPortal("Live Portal", Icons.Default.Language),
     Attendance("Attendance", Icons.Default.CheckCircle),
     Results("Results", Icons.Default.School),
     Timetable("Timetable", Icons.Default.CalendarMonth),
@@ -88,7 +95,7 @@ enum class PortalTab(val label: String, val icon: ImageVector) {
 class PortalViewModel : ViewModel() {
     var signedIn by mutableStateOf(false)
         private set
-    var selectedTab by mutableStateOf(PortalTab.Home)
+    var selectedTab by mutableStateOf(PortalTab.StudentPortal)
         private set
     var loginError by mutableStateOf<String?>(null)
         private set
@@ -106,9 +113,7 @@ class PortalViewModel : ViewModel() {
 }
 
 @Composable
-private fun PortalRoot(vm: PortalViewModel = viewModel()) {
-    if (!vm.signedIn) LoginScreen(vm) else PortalScaffold(vm)
-}
+private fun PortalRoot(vm: PortalViewModel = viewModel()) { PortalScaffold(vm) }
 
 @Composable
 private fun LoginScreen(vm: PortalViewModel) {
@@ -157,7 +162,7 @@ private fun PortalScaffold(vm: PortalViewModel) {
         containerColor = Canvas,
         bottomBar = {
             NavigationBar(containerColor = CardBg) {
-                listOf(PortalTab.Home, PortalTab.Attendance, PortalTab.Results, PortalTab.Timetable, PortalTab.Profile).forEach { tab ->
+                listOf(PortalTab.Home, PortalTab.StudentPortal, PortalTab.Timetable, PortalTab.Notices, PortalTab.Profile).forEach { tab ->
                     NavigationBarItem(
                         selected = vm.selectedTab == tab,
                         onClick = { vm.navigate(tab) },
@@ -192,8 +197,9 @@ private fun PortalScaffold(vm: PortalViewModel) {
             ) { tab ->
                 when (tab) {
                     PortalTab.Home -> DashboardScreen(vm)
-                    PortalTab.Attendance -> AttendanceScreen()
-                    PortalTab.Results -> ResultsScreen()
+                    PortalTab.StudentPortal -> StudentPortalScreen()
+                    PortalTab.Attendance -> StudentPortalScreen()
+                    PortalTab.Results -> StudentPortalScreen()
                     PortalTab.Timetable -> TimetableScreen()
                     PortalTab.Notices -> NoticesScreen()
                     PortalTab.Website -> WebsiteInfoScreen(vm)
@@ -215,6 +221,47 @@ private fun PageHeader(title: String, subtitle: String? = null, trailing: (@Comp
             if (subtitle != null) Text(subtitle, color = Muted, style = MaterialTheme.typography.bodyMedium)
         }
         trailing?.invoke()
+    }
+}
+
+@Composable
+private fun StudentPortalScreen() {
+    var loading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf(false) }
+    val portalUrl = "https://studentportal.juet.ac.in/studentportal/#/"
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val webView = remember {
+        WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.databaseEnabled = true
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            if (android.os.Build.VERSION.SDK_INT >= 26) settings.safeBrowsingEnabled = true
+            WebView.setWebContentsDebuggingEnabled(false)
+            webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) { loading = true; loadError = false }
+                override fun onPageFinished(view: WebView?, url: String?) { loading = false }
+                override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                    if (request?.isForMainFrame == true) { loading = false; loadError = true }
+                }
+            }
+            webChromeClient = WebChromeClient()
+            loadUrl(portalUrl)
+        }
+    }
+    BackHandler(enabled = webView.canGoBack()) { webView.goBack() }
+    Column(Modifier.fillMaxSize().background(Canvas)) {
+        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Official JUET Student Portal", fontWeight = FontWeight.Bold)
+                Text("Live portal · sign in on the official page", color = Muted, style = MaterialTheme.typography.bodySmall)
+            }
+            IconButton(onClick = { webView.reload() }) { Icon(Icons.Default.Refresh, "Reload portal") }
+            IconButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }) { Icon(Icons.Default.OpenInBrowser, "Open in browser") }
+        }
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (loadError) Text("Portal failed to load. Check internet or open in browser.", Modifier.padding(12.dp), color = Orange)
+        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -258,8 +305,8 @@ private fun DashboardScreen(vm: PortalViewModel) {
         item {
             SectionTitle("Quick access", null, null)
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickAction("Attendance", Icons.Default.FactCheck, Modifier.weight(1f)) { vm.navigate(PortalTab.Attendance) }
-                QuickAction("Results", Icons.Default.School, Modifier.weight(1f)) { vm.navigate(PortalTab.Results) }
+                QuickAction("Attendance", Icons.Default.FactCheck, Modifier.weight(1f)) { vm.navigate(PortalTab.StudentPortal) }
+                QuickAction("Results", Icons.Default.School, Modifier.weight(1f)) { vm.navigate(PortalTab.StudentPortal) }
                 QuickAction("Notices", Icons.Default.Campaign, Modifier.weight(1f)) { vm.navigate(PortalTab.Notices) }
             }
         }
