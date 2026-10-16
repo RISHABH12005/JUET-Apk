@@ -31,9 +31,9 @@ A native Android application prototype for a modern, student-focused JUET portal
 
 ## JUET backend integration
 
-The public portal URL does not by itself establish an API available to third-party apps. No authorized API documentation or endpoint has been verified. Request permission and API documentation from the university administrators before integration.
+The app now uses a public-information feed generated from the official JUET website and mirrored in `juet_public_info.json`. GitHub Actions attempts to refresh this feed every five minutes, and the Android app checks the feed every minute while the Notices screen is open. Actual freshness depends on the source website and successful sync runs. The feed contains public links and announcements only; it is not an official JUET API.
 
-The API contracts included in the source are placeholders and are not verified JUET endpoints. Configure a verified HTTPS API, implement secure authentication and token storage, and replace the sample data only after integration has been authorized and tested.
+The official student portal's private backend has not been connected because no authorized API documentation or endpoint has been verified. Attendance, marks, fee balances, registered courses and personal profile data still require an approved university API or backend integration. Request authorization and API documentation from JUET administrators before connecting these records.
 
 ## Security
 
