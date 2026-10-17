@@ -3,6 +3,7 @@ package `in`.juet.studentportal
 import android.os.Bundle
 import android.content.Intent
 import android.net.Uri
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -95,7 +96,7 @@ enum class PortalTab(val label: String, val icon: ImageVector) {
 class PortalViewModel : ViewModel() {
     var signedIn by mutableStateOf(false)
         private set
-    var selectedTab by mutableStateOf(PortalTab.StudentPortal)
+    var selectedTab by mutableStateOf(PortalTab.Home)
         private set
     var loginError by mutableStateOf<String?>(null)
         private set
@@ -232,36 +233,136 @@ private fun StudentPortalScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val webView = remember {
         WebView(context).apply {
+            setBackgroundColor(android.graphics.Color.WHITE)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
+            settings.loadsImagesAutomatically = true
+            settings.javaScriptCanOpenWindowsAutomatically = true
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             if (android.os.Build.VERSION.SDK_INT >= 26) settings.safeBrowsingEnabled = true
-            WebView.setWebContentsDebuggingEnabled(false)
             webViewClient = object : WebViewClient() {
-                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) { loading = true; loadError = false }
-                override fun onPageFinished(view: WebView?, url: String?) { loading = false }
-                override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
-                    if (request?.isForMainFrame == true) { loading = false; loadError = true }
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    loading = true
+                    loadError = false
+                }
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    loading = false
+                }
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: android.webkit.WebResourceRequest?,
+                    error: android.webkit.WebResourceError?
+                ) {
+                    if (request?.isForMainFrame == true) {
+                        loading = false
+                        loadError = true
+                    }
+                }
+                override fun onReceivedHttpError(
+                    view: WebView?,
+                    request: android.webkit.WebResourceRequest?,
+                    errorResponse: android.webkit.WebResourceResponse?
+                ) {
+                    if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
+                        loading = false
+                        loadError = true
+                    }
                 }
             }
             webChromeClient = WebChromeClient()
             loadUrl(portalUrl)
         }
     }
+
     BackHandler(enabled = webView.canGoBack()) { webView.goBack() }
-    Column(Modifier.fillMaxSize().background(Canvas)) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Official JUET Student Portal", fontWeight = FontWeight.Bold)
-                Text("Live portal · sign in on the official page", color = Muted, style = MaterialTheme.typography.bodySmall)
+
+    LaunchedEffect(loading) {
+        if (loading) {
+            delay(15000)
+            if (loading) {
+                loading = false
+                loadError = true
             }
-            IconButton(onClick = { webView.reload() }) { Icon(Icons.Default.Refresh, "Reload portal") }
-            IconButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }) { Icon(Icons.Default.OpenInBrowser, "Open in browser") }
         }
-        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        if (loadError) Text("Portal failed to load. Check internet or open in browser.", Modifier.padding(12.dp), color = Orange)
-        AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
+    }
+
+    Column(Modifier.fillMaxSize().background(Canvas)) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Official JUET Student Portal", fontWeight = FontWeight.Bold, color = Ink)
+                Text("Sign in on JUET's official page to access personal records.", color = Muted, style = MaterialTheme.typography.bodySmall)
+            }
+            IconButton(onClick = {
+                loading = true
+                loadError = false
+                webView.reload()
+            }) { Icon(Icons.Default.Refresh, "Reload portal") }
+            IconButton(onClick = {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl)))
+            }) { Icon(Icons.Default.OpenInBrowser, "Open in browser") }
+        }
+
+        if (loading) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+            Text(
+                "Loading official portal…",
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                color = Muted,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            AndroidView(
+                factory = { webView },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (loadError) {
+                Card(
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    shape = RoundedCornerShape(22.dp)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.CloudOff, contentDescription = null, tint = Green, modifier = Modifier.size(38.dp))
+                        Text("The portal did not load", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Ink)
+                        Text(
+                            "The university site may block embedded browsers or need a fresh session. You can retry here or open the official portal in Chrome.",
+                            color = Muted,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Button(onClick = {
+                            loading = true
+                            loadError = false
+                            webView.reload()
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Try again")
+                        }
+                        OutlinedButton(
+                            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Open official portal in browser")
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
