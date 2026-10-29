@@ -408,6 +408,58 @@ private fun DashboardScreen(vm: PortalViewModel) {
             }
         }
         item {
+            SectionTitle("CampusLynx services", "OPEN PORTAL", null)
+            Text(
+                "Choose a service below to open the official JUET portal. Sign in there and select the matching menu item; personal records remain protected by university authentication.",
+                Modifier.padding(horizontal = 16.dp),
+                color = Muted,
+                style = MaterialTheme.typography.bodySmall
+            )
+            val serviceGroups = listOf(
+                "Dashboard" to listOf("View My Dashboard"),
+                "Feedback" to listOf("Faculty Feedback"),
+                "Student Information" to listOf("Student Medical Info", "My Personal Information", "Student Bank Detail"),
+                "Academic Detail" to listOf("Fee pay slip", "Fee Demand Report", "No Dues Status", "Hostel Allocation Details"),
+                "Registration" to listOf("Subject Pre Registration", "Supplementary Subject Registration", "Summer Subject Registration", "GIP Subject Registration", "Subject Choice Print", "Registration Slip", "Supplementary Subject Choice Print"),
+                "Teaching Load and Attendance" to listOf("My Class Attendance by Student", "Registered Subjects of Student With Faculty"),
+                "Examination Detail" to listOf("My Examination Schedule", "View Event Subject Marks By Student", "Student Grade Card", "Student's Result", "Provision Certificate Acceptance"),
+                "MOOC Subjects" to listOf("Subject Preference", "Subject Status")
+            )
+            Column(
+                Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                serviceGroups.forEach { group ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = CardBg),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                group.first,
+                                color = Green,
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            group.second.forEach { service ->
+                                OutlinedButton(
+                                    onClick = { vm.navigate(PortalTab.StudentPortal) },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(service, modifier = Modifier.weight(1f))
+                                    Icon(Icons.Default.OpenInBrowser, contentDescription = "Open official portal")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
             SectionTitle("JUET & PDF resources", "OPEN", null)
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
