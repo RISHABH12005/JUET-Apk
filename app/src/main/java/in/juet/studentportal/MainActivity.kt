@@ -92,18 +92,32 @@ enum class PortalTab(val label: String, val icon: ImageVector) {
 }
 
 class PortalViewModel : ViewModel() {
-    var selectedTab by mutableStateOf(PortalTab.StudentPortal)
+    var selectedTab by mutableStateOf(PortalTab.Home)
         private set
     fun navigate(tab: PortalTab) { selectedTab = tab }
 }
 
 @Composable
 private fun PortalRoot(vm: PortalViewModel = viewModel()) {
-    PortalScaffold(vm)
+    var portalAuthenticated by remember { mutableStateOf(false) }
+    if (!portalAuthenticated) {
+        StudentPortalScreen(
+            onAuthenticated = {
+                portalAuthenticated = true
+                vm.navigate(PortalTab.Home)
+            },
+            onLoggedOut = { portalAuthenticated = false }
+        )
+    } else {
+        PortalScaffold(vm = vm, onLogout = {
+            portalAuthenticated = false
+            vm.navigate(PortalTab.StudentPortal)
+        })
+    }
 }
 
 @Composable
-private fun PortalScaffold(vm: PortalViewModel) {
+private fun PortalScaffold(vm: PortalViewModel, onLogout: () -> Unit) {
     Scaffold(
         containerColor = Canvas,
         bottomBar = {
@@ -143,7 +157,7 @@ private fun PortalScaffold(vm: PortalViewModel) {
             ) { tab ->
                 when (tab) {
                     PortalTab.Home -> DashboardScreen(vm)
-                    PortalTab.StudentPortal -> StudentPortalScreen()
+                    PortalTab.StudentPortal -> StudentPortalScreen(onAuthenticated = {}, onLoggedOut = onLogout)
                     PortalTab.Attendance -> AttendanceScreen()
                     PortalTab.Results -> ResultsScreen()
                     PortalTab.Timetable -> TimetableScreen()
@@ -171,11 +185,62 @@ private fun PageHeader(title: String, subtitle: String? = null, trailing: (@Comp
 }
 
 @Composable
-private fun StudentPortalScreen() {
+private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf(false) }
     val portalUrl = "https://studentportal.juet.ac.in/studentportal/"
     val context = androidx.compose.ui.platform.LocalContext.current
+    val portalInspectionScript = """
+        (function() {
+          var fields = Array.prototype.slice.call(document.querySelectorAll('input')).filter(function(e) {
+            return !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+          });
+          var describe = function(e) {
+            return [e.name, e.id, e.placeholder, e.getAttribute('aria-label')].join(' ');
+          };
+          var userField = fields.find(function(e) {
+            var d = describe(e);
+            return /user|roll|enroll|student|login|reg|userid/i.test(d) &&
+                   !/captcha|password|otp/i.test(d) && e.type !== 'password';
+          });
+          if (userField && !userField.value) {
+            userField.value = '231B26';
+            userField.dispatchEvent(new Event('input', { bubbles: true }));
+            userField.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          var body = (document.body && document.body.innerText || '').toLowerCase();
+          var passwordField = fields.some(function(e) { return e.type === 'password'; });
+          var captchaField = fields.some(function(e) { return /captcha/i.test(describe(e)); });
+          var captchaText = /captcha|verification code|security code/.test(body);
+          var loginText = /login|sign in|enter user id|user id|roll number/.test(body);
+          var loginForm = passwordField || captchaField || captchaText || (loginText && fields.length > 0);
+          var errorPage = /bad gateway|temporarily unavailable|site can.t be reached|error 502/.test(body);
+          var authenticated = !loginForm && !errorPage && body.length > 20;
+          return [loginForm, errorPage, authenticated, body.length].join('|');
+        })();
+    """.trimIndent()
+    fun inspectPortal(view: WebView?) {
+        if (view == null || loadError) return
+        view.evaluateJavascript(portalInspectionScript) { raw ->
+            val parts = raw?.trim('"')?.split('|').orEmpty()
+            val loginForm = parts.getOrNull(0) == "true"
+            val errorPage = parts.getOrNull(1) == "true"
+            val isAuthenticated = parts.getOrNull(2) == "true"
+            val textLength = parts.getOrNull(3)?.toIntOrNull() ?: 0
+            if (errorPage) {
+                loading = false
+                loadError = true
+            } else if (isAuthenticated && textLength > 20 && !loginForm) {
+                loading = false
+                loadError = false
+                CookieManager.getInstance().flush()
+                onAuthenticated()
+            } else {
+                loading = false
+                view.postDelayed({ inspectPortal(view) }, 1400)
+            }
+        }
+    }
     val webView = remember {
         WebView(context).apply {
             setBackgroundColor(android.graphics.Color.rgb(11, 16, 22))
@@ -196,20 +261,8 @@ private fun StudentPortalScreen() {
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    // Persist the official portal's own session cookies after sign-in.
                     CookieManager.getInstance().flush()
-                    // Some portal failures return a technically loaded but visually empty page.
-                    view?.postDelayed({
-                        view?.evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0).toString()") { result ->
-                            val visibleTextLength = result?.trim('"')?.toIntOrNull() ?: 0
-                            // The portal is a JavaScript app; an empty body immediately after
-                            // navigation can be a transient SPA startup state, not a real failure.
-                            if (visibleTextLength >= 8) {
-                                loading = false
-                                loadError = false
-                            }
-                        }
-                    }, 1800)
+                    view?.postDelayed({ inspectPortal(view) }, 1200)
                 }
 
                 override fun onReceivedError(
@@ -284,6 +337,7 @@ private fun StudentPortalScreen() {
                     webView.clearCache(true)
                     loading = true
                     loadError = false
+                    onLoggedOut()
                     webView.loadUrl(portalUrl)
                 }
             }) { Icon(Icons.Default.Logout, contentDescription = "Log out of portal", tint = Orange) }
