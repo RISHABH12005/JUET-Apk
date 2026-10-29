@@ -202,8 +202,12 @@ private fun StudentPortalScreen() {
                     view?.postDelayed({
                         view?.evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0).toString()") { result ->
                             val visibleTextLength = result?.trim('"')?.toIntOrNull() ?: 0
-                            loading = false
-                            loadError = visibleTextLength < 8
+                            // The portal is a JavaScript app; an empty body immediately after
+                            // navigation can be a transient SPA startup state, not a real failure.
+                            if (visibleTextLength >= 8) {
+                                loading = false
+                                loadError = false
+                            }
                         }
                     }, 1800)
                 }
