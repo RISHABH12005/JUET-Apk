@@ -143,8 +143,8 @@ private fun PortalScaffold(vm: PortalViewModel) {
                 when (tab) {
                     PortalTab.Home -> DashboardScreen(vm)
                     PortalTab.StudentPortal -> StudentPortalScreen()
-                    PortalTab.Attendance -> StudentPortalScreen()
-                    PortalTab.Results -> StudentPortalScreen()
+                    PortalTab.Attendance -> AttendanceScreen()
+                    PortalTab.Results -> ResultsScreen()
                     PortalTab.Timetable -> TimetableScreen()
                     PortalTab.Notices -> NoticesScreen()
                     PortalTab.Website -> WebsiteInfoScreen(vm)
@@ -506,7 +506,7 @@ private fun OfficialRecordNotice(title: String, message: String) {
                 Text("Official records only", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(message, color = Muted, style = MaterialTheme.typography.bodyMedium)
                 Button(
-                    onClick = { (context as? ComponentActivity)?.let { } ; context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) },
+                    onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(14.dp)
                 ) {
