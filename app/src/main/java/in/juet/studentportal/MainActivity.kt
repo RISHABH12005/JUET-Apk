@@ -94,65 +94,19 @@ enum class PortalTab(val label: String, val icon: ImageVector) {
 }
 
 class PortalViewModel : ViewModel() {
-    var signedIn by mutableStateOf(false)
+    var selectedTab by mutableStateOf(PortalTab.StudentPortal)
         private set
-    var selectedTab by mutableStateOf(PortalTab.Home)
-        private set
-    var loginError by mutableStateOf<String?>(null)
-        private set
-    fun demoSignIn(id: String, password: String) {
-        if (id.isBlank() || password.isBlank()) {
-            loginError = "Enter a demo student ID and password."
-            return
-        }
-        // Demo-only: the password is neither transmitted nor stored.
-        loginError = null
-        signedIn = true
-    }
-    fun signOut() { signedIn = false; selectedTab = PortalTab.Home }
     fun navigate(tab: PortalTab) { selectedTab = tab }
 }
 
 @Composable
 private fun PortalRoot(vm: PortalViewModel = viewModel()) {
-    var entered by remember { mutableStateOf(false) }
-    if (entered) PortalScaffold(vm) else LoginScreen(
-        onOpenOfficialLogin = { vm.navigate(PortalTab.StudentPortal); entered = true },
-        onExploreGuest = { vm.navigate(PortalTab.Home); entered = true }
-    )
+    PortalScaffold(vm)
 }
-
 @Composable
-private fun LoginScreen(onOpenOfficialLogin: () -> Unit, onExploreGuest: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Canvas).padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Image(painter = painterResource(id = R.drawable.juet_logo), contentDescription = "Official JUET logo", modifier = Modifier.size(128.dp))
-            Text("JUET Student Portal", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Ink)
-            Text("Your timetable, academic information and campus links in one place.", color = Muted, style = MaterialTheme.typography.bodyLarge)
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
-                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = Green)
-                        Spacer(Modifier.width(10.dp))
-                        Text("Sign in securely", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = Ink)
-                    }
-                    Text("Use the university's official sign-in page. Your password is entered on JUET's portal, not into a separate demo form.", color = Muted, style = MaterialTheme.typography.bodyMedium)
-                    Button(onClick = onOpenOfficialLogin, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp)) {
-                        Icon(Icons.Default.Login, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Continue to JUET login")
-                    }
-                    OutlinedButton(onClick = onExploreGuest, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(15.dp)) {
-                        Text("Explore app as guest")
-                    }
-                    Text("Personal attendance and results are available only if the official JUET portal provides them after sign-in. This app does not bypass university authentication.", color = Muted, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            Text("Independent student app · Not an official JUET product", color = Muted, style = MaterialTheme.typography.labelSmall)
-        }
-    }
+private fun RemovedDemoLoginScreen() {
+    // The app now opens the official JUET portal directly.
 }
-
 @Composable
 private fun PortalScaffold(vm: PortalViewModel) {
     Scaffold(
@@ -229,7 +183,7 @@ private fun StudentPortalScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val webView = remember {
         WebView(context).apply {
-            setBackgroundColor(android.graphics.Color.WHITE)
+            setBackgroundColor(android.graphics.Color.rgb(11, 16, 22))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
@@ -244,9 +198,18 @@ private fun StudentPortalScreen() {
                     loading = true
                     loadError = false
                 }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    loading = false
+                    // Some portal failures return a technically loaded but visually empty page.
+                    view?.postDelayed({
+                        view.evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0).toString()") { result ->
+                            val visibleTextLength = result?.trim('"')?.toIntOrNull() ?: 0
+                            loading = false
+                            loadError = visibleTextLength < 8
+                        }
+                    }, 1800)
                 }
+
                 override fun onReceivedError(
                     view: WebView?,
                     request: android.webkit.WebResourceRequest?,
@@ -257,6 +220,7 @@ private fun StudentPortalScreen() {
                         loadError = true
                     }
                 }
+
                 override fun onReceivedHttpError(
                     view: WebView?,
                     request: android.webkit.WebResourceRequest?,
@@ -277,7 +241,7 @@ private fun StudentPortalScreen() {
 
     LaunchedEffect(loading) {
         if (loading) {
-            delay(15000)
+            delay(20000)
             if (loading) {
                 loading = false
                 loadError = true
@@ -287,73 +251,99 @@ private fun StudentPortalScreen() {
 
     Column(Modifier.fillMaxSize().background(Canvas)) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(PaleGreen),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.School, contentDescription = null, tint = Green, modifier = Modifier.size(25.dp))
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("Official JUET Student Portal", fontWeight = FontWeight.Bold, color = Ink)
-                Text("Sign in on JUET's official page to access personal records.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                Text("JUET Student Portal", fontWeight = FontWeight.Bold, color = Ink, style = MaterialTheme.typography.titleLarge)
+                Text("Official university sign-in", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             IconButton(onClick = {
                 loading = true
                 loadError = false
                 webView.reload()
-            }) { Icon(Icons.Default.Refresh, "Reload portal") }
+            }) { Icon(Icons.Default.Refresh, contentDescription = "Reload portal", tint = Ink) }
             IconButton(onClick = {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl)))
-            }) { Icon(Icons.Default.OpenInBrowser, "Open in browser") }
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }
+            }) { Icon(Icons.Default.OpenInBrowser, contentDescription = "Open in browser", tint = Ink) }
         }
 
-        if (loading) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text(
-                "Loading official portal…",
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                color = Muted,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
+        Box(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 6.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)).background(Canvas)) {
+            AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
 
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            AndroidView(
-                factory = { webView },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            if (loadError) {
-                Card(
-                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = CardBg),
-                    shape = RoundedCornerShape(22.dp)
+            if (loading && !loadError) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = CardBg,
+                    tonalElevation = 4.dp
                 ) {
                     Column(
-                        Modifier.fillMaxWidth().padding(22.dp),
+                        Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Icon(Icons.Default.CloudOff, contentDescription = null, tint = Green, modifier = Modifier.size(38.dp))
-                        Text("The portal did not load", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Ink)
+                        CircularProgressIndicator(color = Green)
+                        Text("Connecting to JUET", color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Loading the official sign-in page securely…", color = Muted, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            if (loadError) {
+                Surface(
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(16.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = CardBg,
+                    tonalElevation = 8.dp
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(PaleGreen),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CloudOff, contentDescription = null, tint = Green, modifier = Modifier.size(34.dp))
+                        }
+                        Text("JUET portal could not load", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text(
-                            "The university site may block embedded browsers or need a fresh session. You can retry here or open the official portal in Chrome.",
+                            "The university site may be temporarily unavailable or may not support the embedded browser. Your credentials have not been requested by this app.",
                             color = Muted,
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Button(onClick = {
-                            loading = true
-                            loadError = false
-                            webView.reload()
-                        }, modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                loading = true
+                                loadError = false
+                                webView.loadUrl(portalUrl)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Try again")
+                            Text("Retry portal")
                         }
                         OutlinedButton(
-                            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) },
-                            modifier = Modifier.fillMaxWidth()
+                            onClick = {
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(14.dp)
                         ) {
                             Icon(Icons.Default.OpenInBrowser, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Open official portal in browser")
+                            Text("Open in Chrome / browser")
                         }
                     }
                 }
@@ -361,98 +351,66 @@ private fun StudentPortalScreen() {
         }
     }
 }
-
 @Composable
 private fun DashboardScreen(vm: PortalViewModel) {
+    val serviceGroups = listOf(
+        "Student Information" to listOf("My Personal Information", "Student Medical Info", "Student Bank Detail"),
+        "Academic & Fees" to listOf("Fee pay slip", "Fee Demand Report", "No Dues Status", "Hostel Allocation Details"),
+        "Registration" to listOf("Subject Pre Registration", "Supplementary Subject Registration", "Summer Subject Registration", "GIP Subject Registration", "Subject Choice Print", "Registration Slip", "Supplementary Subject Choice Print"),
+        "Attendance & Teaching" to listOf("My Class Attendance by Student", "Registered Subjects of Student With Faculty"),
+        "Examinations" to listOf("My Examination Schedule", "View Event Subject Marks By Student", "Student Grade Card", "Student's Result", "Provision Certificate Acceptance"),
+        "MOOC Subjects" to listOf("Subject Preference", "Subject Status"),
+        "Feedback" to listOf("Faculty Feedback")
+    )
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            PageHeader("JUET Student Portal", "B.Tech CSE · Semester VII", trailing = {
-                IconButton(onClick = { vm.navigate(PortalTab.Notices) }) { Icon(Icons.Default.NotificationsNone, "Notices") }
-            })
+            PageHeader("JUET Student Portal", "University services in one place")
         }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A))) {
-                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("STUDENT OVERVIEW", color = Green, style = MaterialTheme.typography.labelMedium)
-                        Text("Welcome back", color = Ink, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("B.Tech CSE · Semester VII", color = Ink)
-                        Text("Timetable and calendar sourced from your uploaded PDFs", color = Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF29415C)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.School, null, tint = Color.White, modifier = Modifier.size(30.dp))
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A))
+            ) {
+                Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = Green, modifier = Modifier.size(34.dp))
+                    Text("Your official student account", color = Ink, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Sign in directly on JUET's secure portal to view your own attendance, marks, fees, registration and profile. This app does not display invented student records.",
+                        color = Muted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Button(
+                        onClick = { vm.navigate(PortalTab.StudentPortal) },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(15.dp)
+                    ) {
+                        Icon(Icons.Default.Login, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Open official JUET login")
                     }
                 }
             }
         }
         item {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard("Semester", "VII", "July–Dec 2026", Icons.Default.CheckCircle, Modifier.weight(1f))
-                MetricCard("Courses", "15", "Timetable course list", Icons.Default.Grade, Modifier.weight(1f))
-            }
+            SectionTitle("Student services", null, null)
         }
-        item {
-            SectionTitle("Today's timetable", "VIEW ALL") { vm.navigate(PortalTab.Timetable) }
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ScheduleRow("09:00 AM", "Data Structures", "Room A-204", Green)
-                ScheduleRow("11:00 AM", "Software Engineering", "Room B-106", Orange)
-                ScheduleRow("02:00 PM", "Computer Networks", "Lab C-12", Color(0xFF5377C5))
-            }
-        }
-        item {
-            SectionTitle("Quick access", null, null)
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickAction("Attendance", Icons.Default.FactCheck, Modifier.weight(1f)) { vm.navigate(PortalTab.StudentPortal) }
-                QuickAction("Results", Icons.Default.School, Modifier.weight(1f)) { vm.navigate(PortalTab.StudentPortal) }
-                QuickAction("Notices", Icons.Default.Campaign, Modifier.weight(1f)) { vm.navigate(PortalTab.Notices) }
-            }
-        }
-        item {
-            SectionTitle("CampusLynx services", "OPEN PORTAL", null)
-            Text(
-                "Choose a service below to open the official JUET portal. Sign in there and select the matching menu item; personal records remain protected by university authentication.",
-                Modifier.padding(horizontal = 16.dp),
-                color = Muted,
-                style = MaterialTheme.typography.bodySmall
-            )
-            val serviceGroups = listOf(
-                "Dashboard" to listOf("View My Dashboard"),
-                "Feedback" to listOf("Faculty Feedback"),
-                "Student Information" to listOf("Student Medical Info", "My Personal Information", "Student Bank Detail"),
-                "Academic Detail" to listOf("Fee pay slip", "Fee Demand Report", "No Dues Status", "Hostel Allocation Details"),
-                "Registration" to listOf("Subject Pre Registration", "Supplementary Subject Registration", "Summer Subject Registration", "GIP Subject Registration", "Subject Choice Print", "Registration Slip", "Supplementary Subject Choice Print"),
-                "Teaching Load and Attendance" to listOf("My Class Attendance by Student", "Registered Subjects of Student With Faculty"),
-                "Examination Detail" to listOf("My Examination Schedule", "View Event Subject Marks By Student", "Student Grade Card", "Student's Result", "Provision Certificate Acceptance"),
-                "MOOC Subjects" to listOf("Subject Preference", "Subject Status")
-            )
-            Column(
-                Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        items(serviceGroups) { group ->
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = RoundedCornerShape(18.dp)
             ) {
-                serviceGroups.forEach { group ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = CardBg),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(group.first, color = Green, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                    group.second.forEach { service ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                group.first,
-                                color = Green,
-                                fontWeight = FontWeight.SemiBold,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            group.second.forEach { service ->
-                                OutlinedButton(
-                                    onClick = { vm.navigate(PortalTab.StudentPortal) },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(service, modifier = Modifier.weight(1f))
-                                    Icon(Icons.Default.OpenInBrowser, contentDescription = "Open official portal")
-                                }
+                            Text(service, color = Ink, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            IconButton(onClick = { vm.navigate(PortalTab.StudentPortal) }) {
+                                Icon(Icons.Default.OpenInBrowser, contentDescription = "Open official portal", tint = Green)
                             }
                         }
                     }
@@ -460,33 +418,21 @@ private fun DashboardScreen(vm: PortalViewModel) {
             }
         }
         item {
-            SectionTitle("JUET & PDF resources", "OPEN", null)
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickAction("JUET website", Icons.Default.Language, Modifier.weight(1f)) { vm.navigate(PortalTab.Website) }
-                    QuickAction("S7 timetable", Icons.Default.CalendarMonth, Modifier.weight(1f)) { vm.navigate(PortalTab.PdfTimetable) }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    QuickAction("B.Tech curriculum", Icons.Default.MenuBook, Modifier.weight(1f)) { vm.navigate(PortalTab.Curriculum) }
-                    QuickAction("Academic calendar", Icons.Default.EventNote, Modifier.weight(1f)) { vm.navigate(PortalTab.AcademicCalendar) }
-                }
-            }
-        }
-        item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = PaleGreen), shape = RoundedCornerShape(18.dp)) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = Green)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text("University data added", fontWeight = FontWeight.SemiBold, color = Green)
-                        Text("Academic calendar and Semester VII timetable are from your PDFs. Attendance and results still need official portal data.", color = Ink, style = MaterialTheme.typography.bodySmall)
-                    }
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Public university resources", color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(onClick = { vm.navigate(PortalTab.Notices) }, modifier = Modifier.fillMaxWidth()) { Text("Announcements and notices") }
+                    OutlinedButton(onClick = { vm.navigate(PortalTab.Website) }, modifier = Modifier.fillMaxWidth()) { Text("Official JUET website and contacts") }
+                    OutlinedButton(onClick = { vm.navigate(PortalTab.AcademicCalendar) }, modifier = Modifier.fillMaxWidth()) { Text("Academic calendar") }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun MetricCard(title: String, value: String, caption: String, icon: ImageVector, modifier: Modifier = Modifier) {
     Card(modifier, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
@@ -1003,40 +949,52 @@ private fun OfficialLinkRow(title: String, subtitle: String, url: String, onOpen
 @Composable
 private fun ProfileScreen(vm: PortalViewModel) {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { PageHeader("My profile", "Student details and app status") }
+        item { PageHeader("Account", "Your personal data stays on the official portal") }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.fillMaxWidth().padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = RoundedCornerShape(22.dp)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Box(Modifier.size(76.dp).clip(CircleShape).background(PaleGreen), contentAlignment = Alignment.Center) {
                         Icon(Icons.Default.Person, null, tint = Green, modifier = Modifier.size(42.dp))
                     }
-                    Text("Demo Student", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Student ID: DEMO-001", color = Muted)
-                    Text("Official profile data is not connected", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    Text("Student account", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Ink)
+                    Text("No student identity is stored or fabricated by this app.", color = Muted, style = MaterialTheme.typography.bodyMedium)
+                    Button(
+                        onClick = { vm.navigate(PortalTab.StudentPortal) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.Login, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sign in on official portal")
+                    }
                 }
             }
         }
         item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardBg),
+                shape = RoundedCornerShape(18.dp)
+            ) {
                 Column {
                     ProfileLine(Icons.Default.School, "Institution", "Jaypee University of Engineering and Technology")
                     HorizontalDivider(color = Color(0xFF26313E))
-                    ProfileLine(Icons.Default.Security, "Authentication", "Demo mode")
+                    ProfileLine(Icons.Default.Security, "Authentication", "Handled by official JUET portal")
                     HorizontalDivider(color = Color(0xFF26313E))
-                    ProfileLine(Icons.Default.Cloud, "Public data feed", "Connected · official public JUET links")
+                    ProfileLine(Icons.Default.Lock, "Credentials", "Never entered into a separate app form")
                 }
-            }
-        }
-        item {
-            OutlinedButton(onClick = { vm.signOut() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(50.dp)) {
-                Icon(Icons.Default.Logout, null)
-                Spacer(Modifier.width(8.dp))
-                Text("Sign out of demo")
             }
         }
     }
 }
-
 @Composable
 private fun ProfileLine(icon: ImageVector, label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
