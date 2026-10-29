@@ -174,7 +174,7 @@ private fun PageHeader(title: String, subtitle: String? = null, trailing: (@Comp
 private fun StudentPortalScreen() {
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf(false) }
-    val portalUrl = "https://studentportal.juet.ac.in/studentportal/#/"
+    val portalUrl = "https://studentportal.juet.ac.in/studentportal/"
     val context = androidx.compose.ui.platform.LocalContext.current
     val webView = remember {
         WebView(context).apply {
