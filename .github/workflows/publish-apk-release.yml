@@ -33,8 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           test -s release-assets/juet.apk
-          TAG="v1"
+          TAG="v1.0.${RUN_NUMBER}"
           gh release create "${TAG}" release-assets/juet.apk \
             --repo "${GITHUB_REPOSITORY}" \
-            --title "JUET APK v1" \
+            --title "JUET APK ${TAG}" \
             --notes "JUET Student Portal APK v1. Built by GitHub Actions. This is a development build; confirm portal functionality on your device. Direct private student-data API integration is not yet complete."
