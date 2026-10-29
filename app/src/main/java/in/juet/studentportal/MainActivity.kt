@@ -6,6 +6,7 @@ import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
@@ -181,6 +182,7 @@ private fun StudentPortalScreen() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
             settings.loadsImagesAutomatically = true
             settings.javaScriptCanOpenWindowsAutomatically = true
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -194,6 +196,8 @@ private fun StudentPortalScreen() {
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
+                    // Persist the official portal's own session cookies after sign-in.
+                    CookieManager.getInstance().flush()
                     // Some portal failures return a technically loaded but visually empty page.
                     view?.postDelayed({
                         view?.evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0).toString()") { result ->
@@ -267,6 +271,18 @@ private fun StudentPortalScreen() {
             IconButton(onClick = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }
             }) { Icon(Icons.Default.OpenInBrowser, contentDescription = "Open in browser", tint = Ink) }
+            IconButton(onClick = {
+                // Explicit logout clears only this app's WebView session.
+                CookieManager.getInstance().removeAllCookies {
+                    CookieManager.getInstance().flush()
+                    WebStorage.getInstance().deleteAllData()
+                    webView.clearHistory()
+                    webView.clearCache(true)
+                    loading = true
+                    loadError = false
+                    webView.loadUrl(portalUrl)
+                }
+            }) { Icon(Icons.Default.Logout, contentDescription = "Log out of portal", tint = Orange) }
         }
 
         Box(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 6.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)).background(Canvas)) {
