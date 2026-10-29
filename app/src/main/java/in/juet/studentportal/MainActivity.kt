@@ -535,44 +535,11 @@ private fun ResultsScreen() {
 }
 @Composable
 private fun TimetableScreen() {
-    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("Timetable", "B.Tech VII Semester · July–December 2026") }
-        item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("MON", "TUE", "WED", "THU", "FRI").forEachIndexed { index, day ->
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        color = if (index == 0) Green else CardBg,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(Modifier.padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(day, color = if (index == 0) Color(0xFF06271F) else Muted, style = MaterialTheme.typography.labelSmall)
-                            Text("${13 + index}", color = if (index == 0) Color(0xFF06271F) else Ink, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-        items(classesSample) { item ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(18.dp)) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(88.dp)) {
-                        Text(item.time, color = Green, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-                        Spacer(Modifier.height(6.dp))
-                        Text(item.room, color = Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(item.subject, fontWeight = FontWeight.SemiBold)
-                        Text(item.faculty, color = Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-        }
-    }
+    OfficialRecordNotice(
+        title = "Timetable",
+        message = "This app does not invent class times or room assignments. Open the official JUET portal for your current registered subjects and attendance timetable. You can also use the university's published timetable PDF if your department has provided one."
+    )
 }
-
-
 @Composable
 private fun WebsiteInfoScreen(vm: PortalViewModel) {
     val context = androidx.compose.ui.platform.LocalContext.current
