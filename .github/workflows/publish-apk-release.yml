@@ -32,7 +32,7 @@ jobs:
           RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
         run: |
           set -euo pipefail
-          test -s release-assets/app-debug.apk
+          test -s release-assets/juet.apk
           TAG="v1"
           gh release create "${TAG}" release-assets/juet.apk \
             --repo "${GITHUB_REPOSITORY}" \
