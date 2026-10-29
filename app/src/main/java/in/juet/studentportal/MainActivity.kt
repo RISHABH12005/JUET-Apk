@@ -196,7 +196,7 @@ private fun StudentPortalScreen() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     // Some portal failures return a technically loaded but visually empty page.
                     view?.postDelayed({
-                        view.evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0).toString()") { result ->
+                        view?.evaluateJavascript("(document.body && document.body.innerText ? document.body.innerText.trim().length : 0).toString()") { result ->
                             val visibleTextLength = result?.trim('"')?.toIntOrNull() ?: 0
                             loading = false
                             loadError = visibleTextLength < 8
