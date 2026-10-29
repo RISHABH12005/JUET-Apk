@@ -114,45 +114,41 @@ class PortalViewModel : ViewModel() {
 }
 
 @Composable
-private fun PortalRoot(vm: PortalViewModel = viewModel()) { PortalScaffold(vm) }
+private fun PortalRoot(vm: PortalViewModel = viewModel()) {
+    var entered by remember { mutableStateOf(false) }
+    if (entered) PortalScaffold(vm) else LoginScreen(
+        onOpenOfficialLogin = { vm.navigate(PortalTab.StudentPortal); entered = true },
+        onExploreGuest = { vm.navigate(PortalTab.Home); entered = true }
+    )
+}
 
 @Composable
-private fun LoginScreen(vm: PortalViewModel) {
-    var id by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+private fun LoginScreen(onOpenOfficialLogin: () -> Unit, onExploreGuest: () -> Unit) {
     Box(Modifier.fillMaxSize().background(Canvas).padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Image(
-                painter = painterResource(id = R.drawable.juet_logo),
-                contentDescription = "Official JUET logo",
-                modifier = Modifier.size(112.dp)
-            )
-            Text("JUET Portal", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Ink)
-            Text("Your campus life, in one place.", color = Muted)
-            Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Student sign in", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    OutlinedTextField(
-                        value = id, onValueChange = { id = it }, label = { Text("Demo student ID") },
-                        leadingIcon = { Icon(Icons.Default.Badge, null) }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = password, onValueChange = { password = it }, label = { Text("Demo password") },
-                        leadingIcon = { Icon(Icons.Default.Lock, null) }, visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true, modifier = Modifier.fillMaxWidth()
-                    )
-                    vm.loginError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Button(onClick = { vm.demoSignIn(id, password) }, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp)) {
-                        Text("Preview dashboard")
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Image(painter = painterResource(id = R.drawable.juet_logo), contentDescription = "Official JUET logo", modifier = Modifier.size(128.dp))
+            Text("JUET Student Portal", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Ink)
+            Text("Your timetable, academic information and campus links in one place.", color = Muted, style = MaterialTheme.typography.bodyLarge)
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
+                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = Green)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Sign in securely", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = Ink)
                     }
-                    Text(
-                        "Demo mode only. Do not enter your real JUET credentials. The app is not connected to university services.",
-                        color = Muted, style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Use the university's official sign-in page. Your password is entered on JUET's portal, not into a separate demo form.", color = Muted, style = MaterialTheme.typography.bodyMedium)
+                    Button(onClick = onOpenOfficialLogin, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(15.dp)) {
+                        Icon(Icons.Default.Login, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Continue to JUET login")
+                    }
+                    OutlinedButton(onClick = onExploreGuest, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(15.dp)) {
+                        Text("Explore app as guest")
+                    }
+                    Text("Personal attendance and results are available only if the official JUET portal provides them after sign-in. This app does not bypass university authentication.", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
             }
-            Text("Independent UI prototype · v0.1.0", color = Muted, style = MaterialTheme.typography.labelSmall)
+            Text("Independent student app · Not an official JUET product", color = Muted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
