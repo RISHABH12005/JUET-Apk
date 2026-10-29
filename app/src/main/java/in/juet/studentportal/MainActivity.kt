@@ -21,7 +21,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,9 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -103,10 +100,7 @@ class PortalViewModel : ViewModel() {
 private fun PortalRoot(vm: PortalViewModel = viewModel()) {
     PortalScaffold(vm)
 }
-@Composable
-private fun RemovedDemoLoginScreen() {
-    // The app now opens the official JUET portal directly.
-}
+
 @Composable
 private fun PortalScaffold(vm: PortalViewModel) {
     Scaffold(
@@ -490,34 +484,35 @@ private val attendanceSample = listOf(
 )
 
 @Composable
-private fun AttendanceScreen() {
-    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { PageHeader("Attendance", "Official attendance is not connected yet") }
-        item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A)), shape = RoundedCornerShape(22.dp)) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Sample attendance (not official)", color = Muted)
-                    Text("86%", color = Ink, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-                    val attendanceProgress by animateFloatAsState(targetValue = 0.86f, animationSpec = tween(durationMillis = 900, delayMillis = 120), label = "attendance_summary_progress")
-                    LinearProgressIndicator(progress = { attendanceProgress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = Green, trackColor = Color(0xFF3C4A61))
-                    Text("Illustrative value — not an official record", color = Muted, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-        items(attendanceSample) { item ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = CardBg)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.subject, Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                        Text("${item.percent}%", color = if (item.percent < 75) Color(0xFFB54735) else Green, fontWeight = FontWeight.Bold)
-                    }
-                    val subjectProgress by animateFloatAsState(
-                        targetValue = item.percent / 100f,
-                        animationSpec = tween(durationMillis = 850, delayMillis = 100),
-                        label = "subject_attendance_progress"
-                    )
-                    LinearProgressIndicator(progress = { subjectProgress }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape), color = if (item.percent < 75) Color(0xFFCF6B58) else Green, trackColor = Color(0xFF26313E))
-                    Text("${item.attended} attended out of ${item.total} classes", color = Muted, style = MaterialTheme.typography.bodySmall)
+private fun OfficialRecordNotice(title: String, message: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val portalUrl = "https://studentportal.juet.ac.in/studentportal/#/"
+    Column(
+        Modifier.fillMaxSize().background(Canvas).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        PageHeader(title, "Live information from the university")
+        Card(
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = CardBg)
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(22.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Icon(Icons.Default.Security, contentDescription = null, tint = Green, modifier = Modifier.size(34.dp))
+                Text("Official records only", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(message, color = Muted, style = MaterialTheme.typography.bodyMedium)
+                Button(
+                    onClick = { (context as? ComponentActivity)?.let { } ; context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.OpenInBrowser, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Open official JUET portal")
                 }
             }
         }
@@ -525,50 +520,19 @@ private fun AttendanceScreen() {
 }
 
 @Composable
-private fun ResultsScreen() {
-    val rows = listOf("Data Structures" to "A", "Software Engineering" to "A-", "Computer Networks" to "B+", "Artificial Intelligence" to "A", "Operating Systems" to "B+")
-    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PageHeader("Results", "Official results are not connected yet") }
-        item {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF172B3A))) {
-                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Sample GPA (not official)", color = Muted)
-                        Text("8.42", color = Ink, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-                        Text("Illustrative result", color = Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(Icons.Default.WorkspacePremium, null, tint = Color(0xFF80DDB9), modifier = Modifier.size(42.dp))
-                }
-            }
-        }
-        item { Text("Subject grades", Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-        items(rows) { row ->
-            Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = CardBg), shape = RoundedCornerShape(16.dp)) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(row.first, Modifier.weight(1f), fontWeight = FontWeight.Medium)
-                    Surface(color = PaleGreen, shape = RoundedCornerShape(10.dp)) {
-                        Text(row.second, Modifier.padding(horizontal = 14.dp, vertical = 8.dp), color = Green, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
+private fun AttendanceScreen() {
+    OfficialRecordNotice(
+        title = "Attendance",
+        message = "Your attendance is personal university data. Open the official JUET portal and select “My Class Attendance by Student” to view the live record."
+    )
 }
-
-private data class ClassItem(val time: String, val subject: String, val room: String, val faculty: String)
-private val classesSample = listOf(
-    ClassItem("09:00 AM", "3D Printing (ME350)", "LT14", "Dr. YK Modi · Monday"),
-    ClassItem("09:00 AM", "Knowledge Management (HS303)", "LT9", "Dr. Sandeep Srivastav · Monday"),
-    ClassItem("10:00 AM", "Image Processing (CS308)", "LT4", "Prof. Vipin Tyagi · Monday"),
-    ClassItem("11:00 AM", "Software Quality Management (CS304)", "LT11", "Dr. Dinesh Verma · Monday"),
-    ClassItem("12:00 PM", "Large Language Models & GenAI (CS310)", "LT1", "Dr. Malti Nagle · Monday"),
-    ClassItem("09:00 AM", "Legal & Ethical Issues in Business (HS011)", "LT1", "Dr. Sandeep Arya · Tuesday, Batch 2"),
-    ClassItem("10:00 AM", "Deep Learning (CS302)", "LT1", "Prof. Mahesh Kumar (BX/BY), Dr. Ankur Mudgal (BZ) · Tuesday"),
-    ClassItem("11:00 AM", "Introduction to Financial Management (HS009)", "LT11", "Dr. Shekhar Singh · Tuesday, Batch 1"),
-    ClassItem("12:00 PM", "Applied Accelerated Deep Learning (CS307)", "LT12", "Dr. Ankur Mudgal · Tuesday"),
-    ClassItem("03:00 PM", "Image Processing (CS308)", "LT11", "Wednesday, Batch 2")
-)
-
+@Composable
+private fun ResultsScreen() {
+    OfficialRecordNotice(
+        title = "Results & grade card",
+        message = "Marks and grades are not stored in this app. Sign in to JUET and open “Student's Result” or “Student Grade Card” to view the official record."
+    )
+}
 @Composable
 private fun TimetableScreen() {
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
