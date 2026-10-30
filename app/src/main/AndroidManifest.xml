@@ -4,7 +4,7 @@
         android:allowBackup="false"
         android:label="JUET Student Portal"
         android:icon="@mipmap/juet_launcher"
-        android:roundIcon="@mipmap/juet_launcher"
+        android:roundIcon="@mipmap/juet_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">

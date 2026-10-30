@@ -519,10 +519,10 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             verticalAlignment = Alignment.CenterVertically
         ) {
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = R.drawable.juet_launcher_foreground),
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.juet_logo),
                 contentDescription = "JUET university logo",
                 modifier = Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)),
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
