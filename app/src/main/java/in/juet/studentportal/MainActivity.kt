@@ -375,10 +375,14 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                     if (inspectionAttempts < 16) {
                         view.postDelayed({ inspectPortal(view) }, 1000)
                     } else {
-                        // Never trap the user on a synthetic error page if JUET rendered
-                        // a form our DOM heuristics did not recognize. Show the real page.
-                        stage = "fallback"
-                        status = "Showing the official JUET page directly because its form could not be identified for native mirroring."
+                        // An unrecognized/empty WebView is not a usable login screen.
+                        // Show recovery actions instead of leaving a blank page with a spinner.
+                        stage = "error"
+                        status = if (result.optInt("bodyLength", 0) == 0) {
+                            "JUET returned an empty page inside the app. The portal or one of its required services may not be responding. Retry or open the portal in your browser."
+                        } else {
+                            "The JUET page loaded, but its sign-in form could not be identified. Open the official page in your browser to continue."
+                        }
                     }
                 }
             }
@@ -519,7 +523,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             verticalAlignment = Alignment.CenterVertically
         ) {
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = R.drawable.juet_logo),
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.juet_launcher_user_logo),
                 contentDescription = "JUET university logo",
                 modifier = Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)),
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit

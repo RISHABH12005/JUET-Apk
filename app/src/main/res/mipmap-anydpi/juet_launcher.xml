@@ -1,1 +1,3 @@
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/juet_logo" android:gravity="center" />
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/juet_launcher_user_logo"
+    android:gravity="center" />
