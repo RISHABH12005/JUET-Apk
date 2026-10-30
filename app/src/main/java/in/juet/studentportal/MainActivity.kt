@@ -64,6 +64,9 @@ private val Orange = Color(0xFFF3B45E)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = android.graphics.Color.rgb(11, 16, 22)
+        window.navigationBarColor = android.graphics.Color.rgb(11, 16, 22)
         setContent { PortalTheme { PortalRoot() } }
     }
 }
@@ -199,6 +202,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
     var stage by remember { mutableStateOf("loading") }
     var status by remember { mutableStateOf("Connecting to the official JUET portal…") }
     var working by remember { mutableStateOf(false) }
+    var inspectionAttempts by remember { mutableStateOf(0) }
     val loginFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color(0xFF20242A),
         unfocusedTextColor = Color(0xFF20242A),
@@ -215,15 +219,18 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
         var fields=Array.prototype.slice.call(document.querySelectorAll('input')).filter(visible);
         var body=(document.body&&document.body.innerText||'').toLowerCase();
         var pw=fields.some(function(e){return e.type==='password'});
-        var user=fields.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
-        var cap=fields.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
+        var textFields=fields.filter(function(e){return (e.type==='text'||e.type==='')&&!/captcha/i.test([e.name,e.id].join(' '))});
+        var user=fields.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))})||textFields[0];
+        var cap=fields.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))})||textFields.find(function(e){return e!==user});
+        var loginButton=Array.prototype.slice.call(document.querySelectorAll('button,input[type=submit],input[type=button]')).some(function(e){return /login/i.test(e.innerText||e.value||'')});
+        var hasUsernameForm=(/sign in to your account/.test(body)||/user id/.test(body))&&textFields.length>=2&&loginButton;
         var imgs=Array.prototype.slice.call(document.images).filter(function(i){return visible(i)&&i.naturalWidth>80&&i.naturalHeight>15});
         var ci=imgs.find(function(i){return /captcha|verify|security/i.test((i.src||'')+' '+(i.alt||'')+' '+(i.id||''))})||imgs.find(function(i){return i.naturalWidth>100&&i.naturalHeight<110});
         var data='';
         if(ci){try{var c=document.createElement('canvas');c.width=ci.naturalWidth;c.height=ci.naturalHeight;c.getContext('2d').drawImage(ci,0,0);data=c.toDataURL('image/png').split(',')[1]||'';}catch(e){}}
         var bad=/bad gateway|temporarily unavailable|error 502|site can.t be reached/.test(body);
         var signed=/log ?out|sign ?out|student dashboard|my profile/.test(body)&&!pw&&!user&&!cap;
-        var state=bad?'error':(pw?'password':((user||cap||/sign in to your account/.test(body))?'username':(signed?'authenticated':'unknown')));
+        var state=bad?'error':(pw?'password':((hasUsernameForm||user&&cap||/sign in to your account/.test(body))?'username':(signed?'authenticated':'unknown')));
         return JSON.stringify({state:state,captcha:data});
       })();
     """.trimIndent()
@@ -247,8 +254,13 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                 "password" -> { stage = "password"; status = "Enter your password on JUET's official page." }
                 "authenticated" -> { CookieManager.getInstance().flush(); onAuthenticated() }
                 else -> if (stage == "loading") {
-                    stage = "error"
-                    status = "JUET's sign-in form could not be identified in the embedded browser."
+                    inspectionAttempts += 1
+                    if (inspectionAttempts < 20) {
+                        view.postDelayed({ inspectPortal(view) }, 1100)
+                    } else {
+                        stage = "error"
+                        status = "JUET loaded, but its sign-in form did not finish rendering. Retry once, or open the same portal in Chrome."
+                    }
                 }
             }
         }
@@ -276,6 +288,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     stage = "loading"
+                    inspectionAttempts = 0
                     status = "Loading JUET sign-in…"
                 }
                 override fun onPageFinished(view: WebView?, url: String?) {

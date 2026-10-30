@@ -3,8 +3,8 @@
     <application
         android:allowBackup="false"
         android:label="JUET Student Portal"
-        android:icon="@drawable/juet_logo"
-        android:roundIcon="@drawable/juet_logo"
+        android:icon="@mipmap/juet_launcher"
+        android:roundIcon="@mipmap/juet_launcher"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
