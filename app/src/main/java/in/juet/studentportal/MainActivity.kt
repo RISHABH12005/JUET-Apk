@@ -215,7 +215,10 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
           var loginText = /login|sign in|enter user id|user id|roll number/.test(body);
           var loginForm = passwordField || captchaField || captchaText || (loginText && fields.length > 0);
           var errorPage = /bad gateway|temporarily unavailable|site can.t be reached|error 502/.test(body);
-          var authenticated = !loginForm && !errorPage && body.length > 20;
+          // A non-empty page is not proof of authentication. Require an explicit
+          // signed-in marker so blank/error/redirect pages can never unlock the app.
+          var authenticatedMarker = /log ?out|sign ?out|student dashboard|my profile|welcome[, ]+231b26/i.test(body);
+          var authenticated = !loginForm && !errorPage && authenticatedMarker && body.length > 20;
           return [loginForm, errorPage, authenticated, body.length].join('|');
         })();
     """.trimIndent()
@@ -236,7 +239,12 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                 CookieManager.getInstance().flush()
                 onAuthenticated()
             } else {
-                loading = false
+                // Keep the loading/error state visible while the document is empty.
+                // If real page content exists, reveal it even if the portal's login
+                // markup differs from our heuristics; never mark it authenticated.
+                if (textLength > 20 || loginForm) {
+                    loading = false
+                }
                 view.postDelayed({ inspectPortal(view) }, 1400)
             }
         }
