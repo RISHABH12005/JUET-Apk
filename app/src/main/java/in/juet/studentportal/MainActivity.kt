@@ -50,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.net.URL
 
@@ -198,6 +199,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
     var userId by remember { mutableStateOf("231B26") }
     var captcha by remember { mutableStateOf("") }
     var captchaBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val loginScope = rememberCoroutineScope()
     var role by remember { mutableStateOf("Student") }
     var stage by remember { mutableStateOf("loading") }
     var status by remember { mutableStateOf("Connecting to the official JUET portal…") }
@@ -231,7 +233,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
         var bad=/bad gateway|temporarily unavailable|error 502|site can.t be reached/.test(body);
         var signed=/log ?out|sign ?out|student dashboard|my profile/.test(body)&&!pw&&!user&&!cap;
         var state=bad?'error':(pw?'password':((hasUsernameForm||user&&cap||/sign in to your account/.test(body))?'username':(signed?'authenticated':'unknown')));
-        return JSON.stringify({state:state,captcha:data});
+        return JSON.stringify({state:state,captcha:data,captchaUrl:ci?(ci.currentSrc||ci.src||''):''});
       })();
     """.trimIndent()
 
@@ -246,10 +248,33 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                     stage = "username"
                     status = "Enter your user ID and the CAPTCHA shown by JUET."
                     val encoded = result.optString("captcha")
-                    if (encoded.isNotBlank()) captchaBitmap = runCatching {
-                        val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
-                        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                    }.getOrNull()
+                    if (encoded.isNotBlank()) {
+                        captchaBitmap = runCatching {
+                            val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+                            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        }.getOrNull()
+                    } else {
+                        val imageUrl = result.optString("captchaUrl")
+                        if (imageUrl.startsWith("https://") || imageUrl.startsWith("http://")) {
+                            loginScope.launch {
+                                val downloaded = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val resolved = java.net.URL(java.net.URL(portalUrl), imageUrl)
+                                        val connection = resolved.openConnection()
+                                        connection.connectTimeout = 10000
+                                        connection.readTimeout = 10000
+                                        CookieManager.getInstance().getCookie(resolved.toString())?.let {
+                                            connection.setRequestProperty("Cookie", it)
+                                        }
+                                        connection.getInputStream().use { stream ->
+                                            android.graphics.BitmapFactory.decodeStream(stream)
+                                        }
+                                    }.getOrNull()
+                                }
+                                if (downloaded != null) captchaBitmap = downloaded
+                            }
+                        }
+                    }
                 }
                 "password" -> { stage = "password"; status = "Enter your password on JUET's official page." }
                 "authenticated" -> { CookieManager.getInstance().flush(); onAuthenticated() }
