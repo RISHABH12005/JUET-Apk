@@ -26,7 +26,7 @@ jobs:
       - name: Rename APK asset
         run: mv release-assets/app-debug.apk release-assets/juet.apk
 
-      - name: Publish GitHub Release
+      - name: Publish latest APK and remove older releases and tags
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
@@ -34,7 +34,25 @@ jobs:
           set -euo pipefail
           test -s release-assets/juet.apk
           TAG="v1.0.${RUN_NUMBER}"
+
+          # Publish the new release first, so a failed upload never removes
+          # the currently available release.
           gh release create "${TAG}" release-assets/juet.apk \
             --repo "${GITHUB_REPOSITORY}" \
             --title "JUET APK ${TAG}" \
-            --notes "JUET Student Portal APK v1. Built by GitHub Actions. This is a development build; confirm portal functionality on your device. Direct private student-data API integration is not yet complete."
+            --notes "JUET Student Portal APK ${TAG}. Automatically built from main after a successful Android build."
+
+          # Keep only the newly published release. Delete each older release
+          # and its Git tag, then remove any remaining old tags.
+          while IFS= read -r OLD_TAG; do
+            [ -n "${OLD_TAG}" ] || continue
+            [ "${OLD_TAG}" = "${TAG}" ] && continue
+            gh release delete "${OLD_TAG}" --cleanup-tag --yes --repo "${GITHUB_REPOSITORY}"
+          done < <(gh release list --limit 1000 --repo "${GITHUB_REPOSITORY}" --json tagName --jq '.[].tagName')
+
+          while IFS= read -r REF; do
+            [ -n "${REF}" ] || continue
+            OLD_TAG="${REF#refs/tags/}"
+            [ "${OLD_TAG}" = "${TAG}" ] && continue
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${OLD_TAG}"
+          done < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/" --jq '.[].ref')
