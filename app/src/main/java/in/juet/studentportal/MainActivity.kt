@@ -36,6 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -186,247 +190,234 @@ private fun PageHeader(title: String, subtitle: String? = null, trailing: (@Comp
 
 @Composable
 private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> Unit) {
-    var loading by remember { mutableStateOf(true) }
-    var loadError by remember { mutableStateOf(false) }
-    val portalUrl = "https://studentportal.juet.ac.in/studentportal/"
     val context = androidx.compose.ui.platform.LocalContext.current
-    val portalInspectionScript = """
-        (function() {
-          var fields = Array.prototype.slice.call(document.querySelectorAll('input')).filter(function(e) {
-            return !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-          });
-          var describe = function(e) {
-            return [e.name, e.id, e.placeholder, e.getAttribute('aria-label')].join(' ');
-          };
-          var userField = fields.find(function(e) {
-            var d = describe(e);
-            return /user|roll|enroll|student|login|reg|userid/i.test(d) &&
-                   !/captcha|password|otp/i.test(d) && e.type !== 'password';
-          });
-          if (userField && !userField.value) {
-            userField.value = '231B26';
-            userField.dispatchEvent(new Event('input', { bubbles: true }));
-            userField.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-          var body = (document.body && document.body.innerText || '').toLowerCase();
-          var passwordField = fields.some(function(e) { return e.type === 'password'; });
-          var captchaField = fields.some(function(e) { return /captcha/i.test(describe(e)); });
-          var captchaText = /captcha|verification code|security code/.test(body);
-          var loginText = /login|sign in|enter user id|user id|roll number/.test(body);
-          var loginForm = passwordField || captchaField || captchaText || (loginText && fields.length > 0);
-          var errorPage = /bad gateway|temporarily unavailable|site can.t be reached|error 502/.test(body);
-          // A non-empty page is not proof of authentication. Require an explicit
-          // signed-in marker so blank/error/redirect pages can never unlock the app.
-          var authenticatedMarker = /log ?out|sign ?out|student dashboard|my profile|welcome[, ]+231b26/i.test(body);
-          var authenticated = !loginForm && !errorPage && authenticatedMarker && body.length > 20;
-          return [loginForm, errorPage, authenticated, body.length].join('|');
-        })();
+    val portalUrl = "https://studentportal.juet.ac.in/studentportal/"
+    var userId by remember { mutableStateOf("231B26") }
+    var captcha by remember { mutableStateOf("") }
+    var captchaBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var role by remember { mutableStateOf("Student") }
+    var stage by remember { mutableStateOf("loading") }
+    var status by remember { mutableStateOf("Connecting to the official JUET portal…") }
+    var working by remember { mutableStateOf(false) }
+
+    val inspectScript = """
+      (function(){
+        var visible=function(e){return !!(e.offsetWidth||e.offsetHeight||e.getClientRects().length)};
+        var fields=Array.prototype.slice.call(document.querySelectorAll('input')).filter(visible);
+        var body=(document.body&&document.body.innerText||'').toLowerCase();
+        var pw=fields.some(function(e){return e.type==='password'});
+        var user=fields.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
+        var cap=fields.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
+        var imgs=Array.prototype.slice.call(document.images).filter(function(i){return visible(i)&&i.naturalWidth>80&&i.naturalHeight>15});
+        var ci=imgs.find(function(i){return /captcha|verify|security/i.test((i.src||'')+' '+(i.alt||'')+' '+(i.id||''))})||imgs.find(function(i){return i.naturalWidth>100&&i.naturalHeight<110});
+        var data='';
+        if(ci){try{var c=document.createElement('canvas');c.width=ci.naturalWidth;c.height=ci.naturalHeight;c.getContext('2d').drawImage(ci,0,0);data=c.toDataURL('image/png').split(',')[1]||'';}catch(e){}}
+        var bad=/bad gateway|temporarily unavailable|error 502|site can.t be reached/.test(body);
+        var signed=/log ?out|sign ?out|student dashboard|my profile/.test(body)&&!pw&&!user&&!cap;
+        var state=bad?'error':(pw?'password':((user||cap||/sign in to your account/.test(body))?'username':(signed?'authenticated':'unknown')));
+        return JSON.stringify({state:state,captcha:data});
+      })();
     """.trimIndent()
+
     fun inspectPortal(view: WebView?) {
-        if (view == null || loadError) return
-        view.evaluateJavascript(portalInspectionScript) { raw ->
-            val parts = raw?.trim('"')?.split('|').orEmpty()
-            val loginForm = parts.getOrNull(0) == "true"
-            val errorPage = parts.getOrNull(1) == "true"
-            val isAuthenticated = parts.getOrNull(2) == "true"
-            val textLength = parts.getOrNull(3)?.toIntOrNull() ?: 0
-            if (errorPage) {
-                loading = false
-                loadError = true
-            } else if (isAuthenticated && textLength > 20 && !loginForm) {
-                loading = false
-                loadError = false
-                CookieManager.getInstance().flush()
-                onAuthenticated()
-            } else {
-                // Keep the loading/error state visible while the document is empty.
-                // If real page content exists, reveal it even if the portal's login
-                // markup differs from our heuristics; never mark it authenticated.
-                if (textLength > 20 || loginForm) {
-                    loading = false
+        if (view == null) return
+        view.evaluateJavascript(inspectScript) { raw ->
+            val payload = runCatching { org.json.JSONTokener(raw).nextValue() as? String }.getOrNull() ?: return@evaluateJavascript
+            val result = runCatching { org.json.JSONObject(payload) }.getOrNull() ?: return@evaluateJavascript
+            when (result.optString("state")) {
+                "error" -> { stage = "error"; status = "JUET is temporarily unavailable. Retry or open the portal in your browser." }
+                "username" -> {
+                    stage = "username"
+                    status = "Enter your user ID and the CAPTCHA shown by JUET."
+                    val encoded = result.optString("captcha")
+                    if (encoded.isNotBlank()) captchaBitmap = runCatching {
+                        val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+                        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    }.getOrNull()
                 }
-                view.postDelayed({ inspectPortal(view) }, 1400)
+                "password" -> { stage = "password"; status = "Enter your password on JUET's official page." }
+                "authenticated" -> { CookieManager.getInstance().flush(); onAuthenticated() }
+                else -> if (stage == "loading") {
+                    stage = "error"
+                    status = "JUET's sign-in form could not be identified in the embedded browser."
+                }
             }
         }
     }
+
     val webView = remember {
         WebView(context).apply {
-            setBackgroundColor(android.graphics.Color.rgb(11, 16, 22))
+            setBackgroundColor(android.graphics.Color.WHITE)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.databaseEnabled = true
-            settings.cacheMode = WebSettings.LOAD_DEFAULT
             settings.loadsImagesAutomatically = true
             settings.javaScriptCanOpenWindowsAutomatically = true
-            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            settings.userAgentString = settings.userAgentString.replace("; wv", "").replace("Version/4.0 ", "")
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-            if (android.os.Build.VERSION.SDK_INT >= 26) settings.safeBrowsingEnabled = true
+            webChromeClient = object : WebChromeClient() {
+                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                    if (newProgress == 100) view?.postDelayed({ inspectPortal(view) }, 500)
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                    loading = true
-                    loadError = false
+                    stage = "loading"
+                    status = "Loading JUET sign-in…"
                 }
-
                 override fun onPageFinished(view: WebView?, url: String?) {
                     CookieManager.getInstance().flush()
-                    view?.postDelayed({ inspectPortal(view) }, 1200)
+                    view?.postDelayed({ inspectPortal(view) }, 800)
                 }
-
-                override fun onReceivedError(
-                    view: WebView?,
-                    request: android.webkit.WebResourceRequest?,
-                    error: android.webkit.WebResourceError?
-                ) {
+                override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
                     if (request?.isForMainFrame == true) {
-                        loading = false
-                        loadError = true
+                        stage = "error"
+                        status = error?.description?.toString() ?: "Could not connect to JUET."
                     }
                 }
-
-                override fun onReceivedHttpError(
-                    view: WebView?,
-                    request: android.webkit.WebResourceRequest?,
-                    errorResponse: android.webkit.WebResourceResponse?
-                ) {
-                    if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 200) >= 400) {
-                        loading = false
-                        loadError = true
+                override fun onReceivedHttpError(view: WebView?, request: android.webkit.WebResourceRequest?, response: android.webkit.WebResourceResponse?) {
+                    if (request?.isForMainFrame == true && (response?.statusCode ?: 200) >= 400) {
+                        stage = "error"
+                        status = "JUET server returned an HTTP error."
                     }
                 }
             }
-            webChromeClient = WebChromeClient()
             loadUrl(portalUrl)
         }
     }
 
-    BackHandler(enabled = webView.canGoBack()) { webView.goBack() }
-
-    LaunchedEffect(loading) {
-        if (loading) {
-            delay(20000)
-            if (loading) {
-                loading = false
-                loadError = true
-            }
+    fun submitUsernameAndCaptcha() {
+        working = true
+        status = "Sending your entries to JUET…"
+        val script = """
+          (function(){
+            var visible=function(e){return !!(e.offsetWidth||e.offsetHeight||e.getClientRects().length)};
+            var a=Array.prototype.slice.call(document.querySelectorAll('input')).filter(visible);
+            var user=a.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
+            var cap=a.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
+            if(!user){var t=a.filter(function(e){return e.type==='text'||e.type===''});user=t[0];}
+            if(!cap){var t=a.filter(function(e){return (e.type==='text'||e.type==='')&&e!==user});cap=t[0];}
+            var radios=Array.prototype.slice.call(document.querySelectorAll('input[type=radio]'));
+            var radio=radios.find(function(e){return new RegExp(ROLE,'i').test((e.parentElement&&e.parentElement.innerText)||e.value||'')});
+            function put(e,v){if(!e)return false;var p=Object.getPrototypeOf(e),d=Object.getOwnPropertyDescriptor(p,'value');if(d&&d.set)d.set.call(e,v);else e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true;}
+            if(radio&&!radio.checked)radio.click();
+            var ok=put(user,USER_VALUE)&&put(cap,CAPTCHA_VALUE);
+            var button=Array.prototype.slice.call(document.querySelectorAll('button,input[type=submit],input[type=button]')).find(function(e){return /login/i.test(e.innerText||e.value||'')});
+            if(ok&&button){button.click();return 'submitted';}
+            return 'fields-not-found';
+          })();
+        """.trimIndent()
+            .replace("ROLE", org.json.JSONObject.quote(role))
+            .replace("USER_VALUE", org.json.JSONObject.quote(userId))
+            .replace("CAPTCHA_VALUE", org.json.JSONObject.quote(captcha))
+        webView.evaluateJavascript(script) { result ->
+            working = false
+            if (result?.contains("submitted") == true) {
+                stage = "loading"
+                status = "JUET is validating your user ID and CAPTCHA…"
+                webView.postDelayed({ inspectPortal(webView) }, 900)
+            } else status = "Could not match JUET's username/CAPTCHA fields. Refresh and try again."
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Canvas)) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(PaleGreen),
-                contentAlignment = Alignment.Center
-            ) {
+    BackHandler(enabled = stage == "password" && webView.canGoBack()) { webView.goBack() }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFF7F8FA))) {
+        Row(Modifier.fillMaxWidth().background(Canvas).padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(PaleGreen), contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.School, contentDescription = null, tint = Green, modifier = Modifier.size(25.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("JUET Student Portal", fontWeight = FontWeight.Bold, color = Ink, style = MaterialTheme.typography.titleLarge)
+                Text("JUET Student Portal", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                 Text("Official university sign-in", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
+            IconButton(onClick = { stage = "loading"; webView.reload() }) { Icon(Icons.Default.Refresh, "Refresh", tint = Ink) }
             IconButton(onClick = {
-                loading = true
-                loadError = false
-                webView.reload()
-            }) { Icon(Icons.Default.Refresh, contentDescription = "Reload portal", tint = Ink) }
-            IconButton(onClick = {
-                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }
-            }) { Icon(Icons.Default.OpenInBrowser, contentDescription = "Open in browser", tint = Ink) }
-            IconButton(onClick = {
-                // Explicit logout clears only this app's WebView session.
                 CookieManager.getInstance().removeAllCookies {
                     CookieManager.getInstance().flush()
                     WebStorage.getInstance().deleteAllData()
                     webView.clearHistory()
                     webView.clearCache(true)
-                    loading = true
-                    loadError = false
                     onLoggedOut()
+                    stage = "loading"
                     webView.loadUrl(portalUrl)
                 }
-            }) { Icon(Icons.Default.Logout, contentDescription = "Log out of portal", tint = Orange) }
+            }) { Icon(Icons.Default.Logout, "Log out", tint = Orange) }
         }
 
-        Box(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 6.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)).background(Canvas)) {
-            AndroidView(factory = { webView }, modifier = Modifier.fillMaxSize())
-
-            if (loading && !loadError) {
-                Surface(
-                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = CardBg,
-                    tonalElevation = 4.dp
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            AndroidView(
+                factory = { webView },
+                modifier = Modifier.fillMaxSize().alpha(if (stage == "password") 1f else 0f)
+            )
+            when (stage) {
+                "username" -> Column(
+                    Modifier.fillMaxSize().background(Color.White).verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 26.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(
-                        Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        CircularProgressIndicator(color = Green)
-                        Text("Connecting to JUET", color = Ink, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Loading the official sign-in page securely…", color = Muted, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-
-            if (loadError) {
-                Surface(
-                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = CardBg,
-                    tonalElevation = 8.dp
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Box(
-                            Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(PaleGreen),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.CloudOff, contentDescription = null, tint = Green, modifier = Modifier.size(34.dp))
+                    Spacer(Modifier.height(6.dp))
+                    Text("SIGN IN TO YOUR ACCOUNT", color = Color(0xFF20242A), style = MaterialTheme.typography.titleLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = role == "Student", onClick = { role = "Student" })
+                            Text("Student", color = Color(0xFF303943))
                         }
-                        Text("JUET portal could not load", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text(
-                            "The university site may be temporarily unavailable or may not support the embedded browser. Your credentials have not been requested by this app.",
-                            color = Muted,
-                            style = MaterialTheme.typography.bodyMedium
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = role == "Parent", onClick = { role = "Parent" })
+                            Text("Parent", color = Color(0xFF303943))
+                        }
+                    }
+                    OutlinedTextField(userId, { userId = it }, label = { Text("USER ID*") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    if (captchaBitmap != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = captchaBitmap!!.asImageBitmap(),
+                            contentDescription = "CAPTCHA supplied by JUET",
+                            modifier = Modifier.fillMaxWidth().height(78.dp),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
-                        Button(
-                            onClick = {
-                                loading = true
-                                loadError = false
-                                webView.loadUrl(portalUrl)
-                            },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Retry portal")
-                        }
-                        OutlinedButton(
-                            onClick = {
-                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Icon(Icons.Default.OpenInBrowser, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Open in Chrome / browser")
-                        }
+                    } else Text("Fetching CAPTCHA from JUET…", color = Color(0xFF526171))
+                    OutlinedTextField(captcha, { captcha = it }, label = { Text("Enter the text as shown in the image *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Button(onClick = { submitUsernameAndCaptcha() }, enabled = !working && userId.isNotBlank() && captcha.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                        Text(if (working) "PLEASE WAIT…" else "LOGIN")
                     }
+                    Text(status, color = Color(0xFF526171), style = MaterialTheme.typography.bodySmall)
+                    Text("JUET validates the CAPTCHA. Password entry stays on JUET's official page.", color = Color(0xFF718096), style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(10.dp))
+                    Text("Powered by JIL Information Technology Ltd.", color = Color(0xFF66717E), style = MaterialTheme.typography.labelSmall)
+                }
+                "loading" -> Column(
+                    Modifier.fillMaxSize().background(Color.White),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(color = Green)
+                    Spacer(Modifier.height(12.dp))
+                    Text(status, color = Color(0xFF26313E))
+                }
+                "error" -> Column(
+                    Modifier.fillMaxSize().background(Color.White).padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFF526171), modifier = Modifier.size(48.dp))
+                    Spacer(Modifier.height(12.dp))
+                    Text("JUET portal could not load", color = Color(0xFF182331), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(status, color = Color(0xFF526171))
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { stage = "loading"; webView.loadUrl(portalUrl) }) { Text("Retry portal") }
+                    TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }) { Text("Open in Chrome / browser") }
                 }
             }
         }
     }
 }
+
 @Composable
 private fun DashboardScreen(vm: PortalViewModel) {
     val serviceGroups = listOf(
