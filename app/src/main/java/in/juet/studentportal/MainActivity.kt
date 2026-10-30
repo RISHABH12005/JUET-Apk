@@ -199,6 +199,15 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
     var stage by remember { mutableStateOf("loading") }
     var status by remember { mutableStateOf("Connecting to the official JUET portal…") }
     var working by remember { mutableStateOf(false) }
+    val loginFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color(0xFF20242A),
+        unfocusedTextColor = Color(0xFF20242A),
+        focusedBorderColor = Color(0xFF8A929A),
+        unfocusedBorderColor = Color(0xFFB0B5BA),
+        focusedLabelColor = Color(0xFF59636E),
+        unfocusedLabelColor = Color(0xFF66717E),
+        cursorColor = Color(0xFF2196F3)
+    )
 
     val inspectScript = """
       (function(){
@@ -373,7 +382,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                             Text("Parent", color = Color(0xFF303943))
                         }
                     }
-                    OutlinedTextField(userId, { userId = it }, label = { Text("USER ID*") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(userId, { userId = it }, label = { Text("USER ID*") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = loginFieldColors)
                     if (captchaBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = captchaBitmap!!.asImageBitmap(),
@@ -382,7 +391,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
                     } else Text("Fetching CAPTCHA from JUET…", color = Color(0xFF526171))
-                    OutlinedTextField(captcha, { captcha = it }, label = { Text("Enter the text as shown in the image *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(captcha, { captcha = it }, label = { Text("Enter the text as shown in the image *") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = loginFieldColors)
                     Button(onClick = { submitUsernameAndCaptcha() }, enabled = !working && userId.isNotBlank() && captcha.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) {
                         Text(if (working) "PLEASE WAIT…" else "LOGIN")
                     }
