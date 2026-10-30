@@ -215,37 +215,117 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
         cursorColor = Color(0xFF2196F3)
     )
 
+    // Inspect the top-level page and accessible same-origin frames. Field order is
+    // used only as a fallback for the known JUET layout: User ID, then CAPTCHA.
     val inspectScript = """
-      (function(){
-        var visible=function(e){return !!(e.offsetWidth||e.offsetHeight||e.getClientRects().length)};
-        var fields=Array.prototype.slice.call(document.querySelectorAll('input')).filter(visible);
-        var body=(document.body&&document.body.innerText||'').toLowerCase();
-        var pw=fields.some(function(e){return e.type==='password'});
-        var textFields=fields.filter(function(e){return (e.type==='text'||e.type==='')&&!/captcha/i.test([e.name,e.id].join(' '))});
-        var user=fields.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))})||textFields[0];
-        var cap=fields.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))})||textFields.find(function(e){return e!==user});
-        var loginButton=Array.prototype.slice.call(document.querySelectorAll('button,input[type=submit],input[type=button]')).some(function(e){return /login/i.test(e.innerText||e.value||'')});
-        var hasUsernameForm=(/sign in to your account/.test(body)||/user id/.test(body))&&textFields.length>=2&&loginButton;
-        var imgs=Array.prototype.slice.call(document.images).filter(function(i){return visible(i)&&i.naturalWidth>80&&i.naturalHeight>15});
-        var ci=imgs.find(function(i){return /captcha|verify|security/i.test((i.src||'')+' '+(i.alt||'')+' '+(i.id||''))})||imgs.find(function(i){return i.naturalWidth>100&&i.naturalHeight<110});
-        var data='';
-        if(ci){try{var c=document.createElement('canvas');c.width=ci.naturalWidth;c.height=ci.naturalHeight;c.getContext('2d').drawImage(ci,0,0);data=c.toDataURL('image/png').split(',')[1]||'';}catch(e){}}
-        var bad=/bad gateway|temporarily unavailable|error 502|site can.t be reached/.test(body);
-        var signed=/log ?out|sign ?out|student dashboard|my profile/.test(body)&&!pw&&!user&&!cap;
-        var state=bad?'error':(pw?'password':((hasUsernameForm||user&&cap||/sign in to your account/.test(body))?'username':(signed?'authenticated':'unknown')));
-        return JSON.stringify({state:state,captcha:data,captchaUrl:ci?(ci.currentSrc||ci.src||''):''});
+      (function () {
+        var docs = [document];
+        for (var i = 0; i < window.frames.length; i++) {
+          try {
+            var frameDoc = window.frames[i].document;
+            if (frameDoc && docs.indexOf(frameDoc) < 0) docs.push(frameDoc);
+          } catch (ignored) {}
+        }
+        function visible(e) {
+          if (!e) return false;
+          var r = e.getBoundingClientRect ? e.getBoundingClientRect() : null;
+          return !!(r && r.width > 0 && r.height > 0);
+        }
+        function labelText(e) {
+          var parts = [e.name, e.id, e.placeholder, e.getAttribute('aria-label'), e.title];
+          try {
+            if (e.labels) Array.prototype.forEach.call(e.labels, function (l) { parts.push(l.innerText || l.textContent || ''); });
+          } catch (ignored) {}
+          try {
+            var p = e.closest('label') || e.parentElement;
+            if (p) parts.push(p.innerText || p.textContent || '');
+          } catch (ignored) {}
+          return parts.join(' ').toLowerCase();
+        }
+        var allText = [];
+        var allInputs = [];
+        var allImages = [];
+        var allCanvases = [];
+        var allButtons = [];
+        docs.forEach(function (d) {
+          try { allText.push((d.body && d.body.innerText) || ''); } catch (ignored) {}
+          try { Array.prototype.push.apply(allInputs, Array.prototype.slice.call(d.querySelectorAll('input,textarea'))); } catch (ignored) {}
+          try { Array.prototype.push.apply(allImages, Array.prototype.slice.call(d.images)); } catch (ignored) {}
+          try { Array.prototype.push.apply(allCanvases, Array.prototype.slice.call(d.querySelectorAll('canvas'))); } catch (ignored) {}
+          try { Array.prototype.push.apply(allButtons, Array.prototype.slice.call(d.querySelectorAll('button,input[type=submit],input[type=button],a[role=button]'))); } catch (ignored) {}
+        });
+        var body = allText.join(' ').toLowerCase();
+        var fields = allInputs.filter(visible);
+        var passwordField = fields.some(function (e) { return e.tagName === 'INPUT' && e.type === 'password'; });
+        var editable = fields.filter(function (e) {
+          if (e.tagName === 'TEXTAREA') return true;
+          var t = (e.type || 'text').toLowerCase();
+          return ['text','email','tel','number','search'].indexOf(t) >= 0;
+        });
+        var user = editable.find(function (e) { return /user id|user.?id|roll|enroll|student.?id|login.?id|registration/i.test(labelText(e)); }) || editable[0];
+        var cap = editable.find(function (e) { return /captcha|verification|security code|text as shown/i.test(labelText(e)); }) || editable.find(function (e) { return e !== user; });
+        var loginButton = allButtons.some(function (e) { return /login|log in|sign in|continue/i.test((e.innerText || e.value || e.textContent || '').trim()); });
+        var loginHeading = /sign in to your account|sign in|student\s+parent/.test(body);
+        var loginForm = !passwordField && ((!!user && !!cap && loginButton) || (editable.length >= 2 && loginButton) || (loginHeading && editable.length >= 2));
+        var captchaImages = allImages.filter(function (im) { return visible(im) && im.naturalWidth > 60 && im.naturalHeight > 12; });
+        var captchaImage = captchaImages.find(function (im) {
+          return /captcha|verify|security|validation/i.test((im.src || '') + ' ' + (im.alt || '') + ' ' + (im.id || '') + ' ' + (im.className || ''));
+        }) || captchaImages.find(function (im) {
+          var ratio = im.naturalWidth / Math.max(1, im.naturalHeight);
+          return im.naturalWidth >= 120 && im.naturalHeight <= 130 && ratio >= 1.8;
+        });
+        var captchaData = '';
+        var captchaUrl = '';
+        if (captchaImage) {
+          captchaUrl = captchaImage.currentSrc || captchaImage.src || '';
+          try {
+            var canvas = captchaImage.ownerDocument.createElement('canvas');
+            canvas.width = captchaImage.naturalWidth;
+            canvas.height = captchaImage.naturalHeight;
+            canvas.getContext('2d').drawImage(captchaImage, 0, 0);
+            captchaData = canvas.toDataURL('image/png').split(',')[1] || '';
+          } catch (ignored) {}
+        }
+        if (!captchaData && !captchaImage) {
+          var canvasImage = allCanvases.find(function (c) {
+            var r = c.getBoundingClientRect();
+            return r.width >= 120 && r.height >= 15 && r.height <= 130;
+          });
+          if (canvasImage) {
+            try { captchaData = canvasImage.toDataURL('image/png').split(',')[1] || ''; } catch (ignored) {}
+          }
+        }
+        var unavailable = /bad gateway|temporarily unavailable|error 502|site can.t be reached/.test(body);
+        var signedIn = /log ?out|sign ?out|student dashboard|my profile/.test(body) && !passwordField && !loginForm;
+        var state = unavailable ? 'error' : (passwordField ? 'password' : (loginForm ? 'username' : (signedIn ? 'authenticated' : 'unknown')));
+        return JSON.stringify({
+          state: state,
+          captcha: captchaData,
+          captchaUrl: captchaUrl,
+          inputCount: fields.length,
+          editableCount: editable.length,
+          buttonFound: loginButton,
+          headingFound: loginHeading,
+          bodyLength: body.length
+        });
       })();
     """.trimIndent()
 
     fun inspectPortal(view: WebView?) {
         if (view == null) return
         view.evaluateJavascript(inspectScript) { raw ->
-            val payload = runCatching { org.json.JSONTokener(raw).nextValue() as? String }.getOrNull() ?: return@evaluateJavascript
-            val result = runCatching { org.json.JSONObject(payload) }.getOrNull() ?: return@evaluateJavascript
+            val payload = runCatching { org.json.JSONTokener(raw).nextValue() as? String }.getOrNull()
+                ?: return@evaluateJavascript
+            val result = runCatching { org.json.JSONObject(payload) }.getOrNull()
+                ?: return@evaluateJavascript
             when (result.optString("state")) {
-                "error" -> { stage = "error"; status = "JUET is temporarily unavailable. Retry or open the portal in your browser." }
+                "error" -> {
+                    stage = "error"
+                    status = "JUET's server is temporarily unavailable. You can retry or open the same portal in your browser."
+                }
                 "username" -> {
                     stage = "username"
+                    inspectionAttempts = 0
                     status = "Enter your user ID and the CAPTCHA shown by JUET."
                     val encoded = result.optString("captcha")
                     if (encoded.isNotBlank()) {
@@ -263,6 +343,8 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                                         val connection = resolved.openConnection()
                                         connection.connectTimeout = 10000
                                         connection.readTimeout = 10000
+                                        connection.setRequestProperty("Referer", portalUrl)
+                                        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36")
                                         CookieManager.getInstance().getCookie(resolved.toString())?.let {
                                             connection.setRequestProperty("Cookie", it)
                                         }
@@ -275,16 +357,28 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                             }
                         }
                     }
+                    if (captchaBitmap == null && inspectionAttempts < 8) {
+                        inspectionAttempts += 1
+                        view.postDelayed({ inspectPortal(view) }, 900)
+                    }
                 }
-                "password" -> { stage = "password"; status = "Enter your password on JUET's official page." }
-                "authenticated" -> { CookieManager.getInstance().flush(); onAuthenticated() }
-                else -> if (stage == "loading") {
+                "password" -> {
+                    stage = "password"
+                    status = "JUET accepted the first step. Enter your password on the official JUET page."
+                }
+                "authenticated" -> {
+                    CookieManager.getInstance().flush()
+                    onAuthenticated()
+                }
+                else -> {
                     inspectionAttempts += 1
-                    if (inspectionAttempts < 20) {
-                        view.postDelayed({ inspectPortal(view) }, 1100)
+                    if (inspectionAttempts < 16) {
+                        view.postDelayed({ inspectPortal(view) }, 1000)
                     } else {
-                        stage = "error"
-                        status = "JUET loaded, but its sign-in form did not finish rendering. Retry once, or open the same portal in Chrome."
+                        // Never trap the user on a synthetic error page if JUET rendered
+                        // a form our DOM heuristics did not recognize. Show the real page.
+                        stage = "fallback"
+                        status = "Showing the official JUET page directly because its form could not be identified for native mirroring."
                     }
                 }
             }
@@ -307,7 +401,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             webChromeClient = object : WebChromeClient() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                    if (newProgress == 100) view?.postDelayed({ inspectPortal(view) }, 500)
+                    if (newProgress == 100) view?.postDelayed({ inspectPortal(view) }, 350)
                 }
             }
             webViewClient = object : WebViewClient() {
@@ -318,7 +412,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                 }
                 override fun onPageFinished(view: WebView?, url: String?) {
                     CookieManager.getInstance().flush()
-                    view?.postDelayed({ inspectPortal(view) }, 800)
+                    view?.postDelayed({ inspectPortal(view) }, 600)
                 }
                 override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
                     if (request?.isForMainFrame == true) {
@@ -340,51 +434,104 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
     fun submitUsernameAndCaptcha() {
         working = true
         status = "Sending your entries to JUET…"
-        val script = """
-          (function(){
-            var visible=function(e){return !!(e.offsetWidth||e.offsetHeight||e.getClientRects().length)};
-            var a=Array.prototype.slice.call(document.querySelectorAll('input')).filter(visible);
-            var user=a.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
-            var cap=a.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
-            var textFields=a.filter(function(e){return (e.type==='text'||e.type==='')&&!/captcha/i.test([e.name,e.id].join(' '))});
-            if(!user)user=textFields[0];
-            if(!cap)cap=textFields.find(function(e){return e!==user;});
-            var radios=Array.prototype.slice.call(document.querySelectorAll('input[type=radio]'));
-            var radio=radios.find(function(e){return new RegExp(ROLE,'i').test((e.parentElement&&e.parentElement.innerText)||e.value||'')});
-            function put(e,v){if(!e)return false;var p=Object.getPrototypeOf(e),d=Object.getOwnPropertyDescriptor(p,'value');if(d&&d.set)d.set.call(e,v);else e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true;}
-            if(radio&&!radio.checked)radio.click();
-            var ok=put(user,USER_VALUE)&&put(cap,CAPTCHA_VALUE);
-            var button=Array.prototype.slice.call(document.querySelectorAll('button,input[type=submit],input[type=button]')).find(function(e){return /login/i.test(e.innerText||e.value||'')});
+        val submitScript = """
+          (function () {
+            var docs = [document];
+            for (var i = 0; i < window.frames.length; i++) {
+              try {
+                var fd = window.frames[i].document;
+                if (fd && docs.indexOf(fd) < 0) docs.push(fd);
+              } catch (ignored) {}
+            }
+            function visible(e) {
+              var r = e && e.getBoundingClientRect ? e.getBoundingClientRect() : null;
+              return !!(r && r.width > 0 && r.height > 0);
+            }
+            function labelText(e) {
+              var p = [e.name,e.id,e.placeholder,e.getAttribute('aria-label'),e.title];
+              try { if (e.labels) Array.prototype.forEach.call(e.labels,function(l){p.push(l.innerText||l.textContent||'');}); } catch (ignored) {}
+              try { var l=e.closest('label')||e.parentElement;if(l)p.push(l.innerText||l.textContent||''); } catch (ignored) {}
+              return p.join(' ').toLowerCase();
+            }
+            var fields=[];
+            var buttons=[];
+            docs.forEach(function(d){
+              try { Array.prototype.push.apply(fields,Array.prototype.slice.call(d.querySelectorAll('input,textarea')).filter(visible)); } catch (ignored) {}
+              try { Array.prototype.push.apply(buttons,Array.prototype.slice.call(d.querySelectorAll('button,input[type=submit],input[type=button],a[role=button]'))); } catch (ignored) {}
+            });
+            var editable=fields.filter(function(e){
+              if(e.tagName==='TEXTAREA')return true;
+              return ['text','email','tel','number','search',''].indexOf((e.type||'text').toLowerCase())>=0;
+            });
+            var user=editable.find(function(e){return /user id|user.?id|roll|enroll|student.?id|login.?id|registration/i.test(labelText(e));})||editable[0];
+            var cap=editable.find(function(e){return /captcha|verification|security code|text as shown/i.test(labelText(e));})||editable.find(function(e){return e!==user;});
+            var radios=[];
+            docs.forEach(function(d){try{Array.prototype.push.apply(radios,Array.prototype.slice.call(d.querySelectorAll('input[type=radio]')));}catch(ignored){}});
+            var chosen=radios.find(function(e){
+              var text=(e.parentElement&&(e.parentElement.innerText||e.parentElement.textContent))||e.value||'';
+              try { if(e.labels)Array.prototype.forEach.call(e.labels,function(l){text+=' '+(l.innerText||l.textContent||'');}); } catch(ignored){}
+              return new RegExp(ROLE,'i').test(text);
+            });
+            function setValue(e,v){
+              if(!e)return false;
+              var proto=Object.getPrototypeOf(e),desc=Object.getOwnPropertyDescriptor(proto,'value');
+              if(desc&&desc.set)desc.set.call(e,v);else e.value=v;
+              e.dispatchEvent(new Event('input',{bubbles:true}));
+              e.dispatchEvent(new Event('change',{bubbles:true}));
+              return true;
+            }
+            if(chosen&&!chosen.checked)chosen.click();
+            var ok=setValue(user,USER_VALUE)&&setValue(cap,CAPTCHA_VALUE);
+            var button=buttons.find(function(e){return /login|log in|sign in|continue/i.test((e.innerText||e.value||e.textContent||'').trim());});
             if(ok&&button){button.click();return 'submitted';}
+            if(ok&&user.form){if(user.form.requestSubmit)user.form.requestSubmit();else user.form.submit();return 'submitted';}
             return 'fields-not-found';
           })();
         """.trimIndent()
             .replace("ROLE", org.json.JSONObject.quote(role))
             .replace("USER_VALUE", org.json.JSONObject.quote(userId))
             .replace("CAPTCHA_VALUE", org.json.JSONObject.quote(captcha))
-        webView.evaluateJavascript(script) { result ->
+        webView.evaluateJavascript(submitScript) { result ->
             working = false
             if (result?.contains("submitted") == true) {
                 stage = "loading"
+                inspectionAttempts = 0
                 status = "JUET is validating your user ID and CAPTCHA…"
-                webView.postDelayed({ inspectPortal(webView) }, 900)
-            } else status = "Could not match JUET's username/CAPTCHA fields. Refresh and try again."
+                webView.postDelayed({ inspectPortal(webView) }, 700)
+            } else {
+                stage = "fallback"
+                status = "The page fields differed from the native form. The official JUET page is open below; complete the CAPTCHA there."
+            }
         }
     }
 
-    BackHandler(enabled = stage == "password" && webView.canGoBack()) { webView.goBack() }
+    BackHandler(enabled = (stage == "password" || stage == "fallback") && webView.canGoBack()) {
+        webView.goBack()
+    }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFF7F8FA))) {
-        Row(Modifier.fillMaxWidth().background(Canvas).padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)).background(PaleGreen), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.School, contentDescription = null, tint = Green, modifier = Modifier.size(25.dp))
-            }
+    Column(
+        Modifier.fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .background(Color(0xFFF7F8FA))
+    ) {
+        Row(
+            Modifier.fillMaxWidth().background(Canvas).padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.juet_launcher_foreground),
+                contentDescription = "JUET university logo",
+                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(13.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("JUET Student Portal", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                 Text("Official university sign-in", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = { stage = "loading"; webView.reload() }) { Icon(Icons.Default.Refresh, "Refresh", tint = Ink) }
+            IconButton(onClick = { stage = "loading"; inspectionAttempts = 0; webView.reload() }) {
+                Icon(Icons.Default.Refresh, "Refresh", tint = Ink)
+            }
             IconButton(onClick = {
                 CookieManager.getInstance().removeAllCookies {
                     CookieManager.getInstance().flush()
@@ -392,7 +539,10 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                     webView.clearHistory()
                     webView.clearCache(true)
                     onLoggedOut()
+                    captcha = ""
+                    captchaBitmap = null
                     stage = "loading"
+                    inspectionAttempts = 0
                     webView.loadUrl(portalUrl)
                 }
             }) { Icon(Icons.Default.Logout, "Log out", tint = Orange) }
@@ -401,11 +551,13 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             AndroidView(
                 factory = { webView },
-                modifier = Modifier.fillMaxSize().alpha(if (stage == "password") 1f else 0f)
+                modifier = Modifier.fillMaxSize().alpha(if (stage == "password" || stage == "fallback") 1f else 0f)
             )
             when (stage) {
                 "username" -> Column(
-                    Modifier.fillMaxSize().background(Color.White).verticalScroll(rememberScrollState()).padding(horizontal = 28.dp, vertical = 26.dp),
+                    Modifier.fillMaxSize().background(Color.White)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 28.dp, vertical = 26.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -421,7 +573,13 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                             Text("Parent", color = Color(0xFF303943))
                         }
                     }
-                    OutlinedTextField(userId, { userId = it }, label = { Text("USER ID*") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = loginFieldColors)
+                    OutlinedTextField(
+                        userId, { userId = it },
+                        label = { Text("USER ID*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = loginFieldColors
+                    )
                     if (captchaBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = captchaBitmap!!.asImageBitmap(),
@@ -429,13 +587,27 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                             modifier = Modifier.fillMaxWidth().height(78.dp),
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
-                    } else Text("Fetching CAPTCHA from JUET…", color = Color(0xFF526171))
-                    OutlinedTextField(captcha, { captcha = it }, label = { Text("Enter the text as shown in the image *") }, modifier = Modifier.fillMaxWidth(), singleLine = true, colors = loginFieldColors)
-                    Button(onClick = { submitUsernameAndCaptcha() }, enabled = !working && userId.isNotBlank() && captcha.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                        Text(if (working) "PLEASE WAIT…" else "LOGIN")
+                    } else {
+                        Text("Fetching CAPTCHA from JUET…", color = Color(0xFF526171))
                     }
+                    OutlinedTextField(
+                        captcha, { captcha = it },
+                        label = { Text("Enter the text as shown in the image *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = loginFieldColors
+                    )
+                    Button(
+                        onClick = { submitUsernameAndCaptcha() },
+                        enabled = !working && userId.isNotBlank() && captcha.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) { Text(if (working) "PLEASE WAIT…" else "LOGIN") }
                     Text(status, color = Color(0xFF526171), style = MaterialTheme.typography.bodySmall)
-                    Text("JUET validates the CAPTCHA. Password entry stays on JUET's official page.", color = Color(0xFF718096), style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        "JUET validates the CAPTCHA. Password entry stays on JUET's official page.",
+                        color = Color(0xFF718096),
+                        style = MaterialTheme.typography.labelSmall
+                    )
                     Spacer(Modifier.height(10.dp))
                     Text("Powered by JIL Information Technology Ltd.", color = Color(0xFF66717E), style = MaterialTheme.typography.labelSmall)
                 }
@@ -458,8 +630,22 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                     Text("JUET portal could not load", color = Color(0xFF182331), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(status, color = Color(0xFF526171))
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { stage = "loading"; webView.loadUrl(portalUrl) }) { Text("Retry portal") }
-                    TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }) { Text("Open in Chrome / browser") }
+                    Button(onClick = { stage = "loading"; inspectionAttempts = 0; webView.loadUrl(portalUrl) }) { Text("Retry portal") }
+                    TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }) {
+                        Text("Open in Chrome / browser")
+                    }
+                }
+                "fallback" -> Surface(
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
+                    color = Color(0xEE0B1016),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text(
+                        status,
+                        modifier = Modifier.padding(14.dp),
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
