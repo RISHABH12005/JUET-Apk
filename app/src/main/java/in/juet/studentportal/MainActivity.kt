@@ -321,8 +321,9 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             var a=Array.prototype.slice.call(document.querySelectorAll('input')).filter(visible);
             var user=a.find(function(e){return e.type!=='password'&&!/captcha/i.test([e.name,e.id,e.placeholder].join(' '))&&/user|roll|enroll|student|login|reg|userid/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
             var cap=a.find(function(e){return /captcha|text as shown|verification/i.test([e.name,e.id,e.placeholder,e.getAttribute('aria-label')].join(' '))});
-            if(!user){var t=a.filter(function(e){return e.type==='text'||e.type===''});user=t[0];}
-            if(!cap){var t=a.filter(function(e){return (e.type==='text'||e.type==='')&&e!==user});cap=t[0];}
+            var textFields=a.filter(function(e){return (e.type==='text'||e.type==='')&&!/captcha/i.test([e.name,e.id].join(' '))});
+            if(!user)user=textFields[0];
+            if(!cap)cap=textFields.find(function(e){return e!==user;});
             var radios=Array.prototype.slice.call(document.querySelectorAll('input[type=radio]'));
             var radio=radios.find(function(e){return new RegExp(ROLE,'i').test((e.parentElement&&e.parentElement.innerText)||e.value||'')});
             function put(e,v){if(!e)return false;var p=Object.getPrototypeOf(e),d=Object.getOwnPropertyDescriptor(p,'value');if(d&&d.set)d.set.call(e,v);else e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));return true;}
