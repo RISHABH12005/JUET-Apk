@@ -12,8 +12,8 @@ android {
         applicationId = "in.juet.studentportal"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 58
+        versionName = "1.0.58"
         buildConfigField("boolean", "DEMO_MODE", "true")
         buildConfigField("String", "PUBLIC_INFO_URL", "\"https://raw.githubusercontent.com/RISHABH12005/JUET-Apk/main/juet_public_info.json\"")
     }
