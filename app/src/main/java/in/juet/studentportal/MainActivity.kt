@@ -198,6 +198,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
     val portalUrl = "https://studentportal.juet.ac.in/studentportal/"
     var userId by remember { mutableStateOf("231B26") }
     var captcha by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var captchaBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     val loginScope = rememberCoroutineScope()
     var role by remember { mutableStateOf("Student") }
@@ -206,13 +207,13 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
     var working by remember { mutableStateOf(false) }
     var inspectionAttempts by remember { mutableStateOf(0) }
     val loginFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color(0xFF20242A),
-        unfocusedTextColor = Color(0xFF20242A),
-        focusedBorderColor = Color(0xFF8A929A),
-        unfocusedBorderColor = Color(0xFFB0B5BA),
-        focusedLabelColor = Color(0xFF59636E),
-        unfocusedLabelColor = Color(0xFF66717E),
-        cursorColor = Color(0xFF2196F3)
+        focusedTextColor = Ink,
+        unfocusedTextColor = Ink,
+        focusedBorderColor = Green,
+        unfocusedBorderColor = Color(0xFF394655),
+        focusedLabelColor = Green,
+        unfocusedLabelColor = Muted,
+        cursorColor = Green
     )
 
     // Inspect the top-level page and accessible same-origin frames. Field order is
@@ -363,8 +364,40 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                     }
                 }
                 "password" -> {
-                    stage = "password"
-                    status = "JUET accepted the first step. Enter your password on the official JUET page."
+                    if (password.isBlank()) {
+                        stage = "password"
+                        status = "Enter your JUET password to continue."
+                    } else {
+                        stage = "loading"
+                        status = "Submitting credentials to the official JUET sign-in form…"
+                        val passwordScript = """
+                          (function () {
+                            var docs=[document];
+                            for(var i=0;i<window.frames.length;i++){try{var d=window.frames[i].document;if(d&&docs.indexOf(d)<0)docs.push(d);}catch(e){}}
+                            var fields=[];var buttons=[];
+                            docs.forEach(function(d){try{Array.prototype.push.apply(fields,Array.prototype.slice.call(d.querySelectorAll('input[type=password]')));Array.prototype.push.apply(buttons,Array.prototype.slice.call(d.querySelectorAll('button,input[type=submit],input[type=button]')));}catch(e){}});
+                            var field=fields.find(function(e){var r=e.getBoundingClientRect();return r.width>0&&r.height>0;})||fields[0];
+                            if(!field)return 'password-field-not-found';
+                            var setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;
+                            setter.call(field,PASSWORD_VALUE);
+                            field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));
+                            var button=buttons.find(function(e){return /login|log in|sign in|submit/i.test((e.innerText||e.value||'').trim());});
+                            if(button){button.click();return 'submitted';}
+                            if(field.form){if(field.form.requestSubmit)field.form.requestSubmit();else field.form.submit();return 'submitted';}
+                            return 'submit-control-not-found';
+                          })();
+                        """.trimIndent().replace("PASSWORD_VALUE", org.json.JSONObject.quote(password))
+                        view.evaluateJavascript(passwordScript) { submitted ->
+                            password = ""
+                            if (submitted?.contains("submitted") == true) {
+                                inspectionAttempts = 0
+                                view.postDelayed({ inspectPortal(view) }, 900)
+                            } else {
+                                stage = "fallback"
+                                status = "JUET's password form could not be submitted automatically. Continue on the official portal below."
+                            }
+                        }
+                    }
                 }
                 "authenticated" -> {
                     CookieManager.getInstance().flush()
@@ -559,22 +592,22 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             )
             when (stage) {
                 "username" -> Column(
-                    Modifier.fillMaxSize().background(Color.White)
+                    Modifier.fillMaxSize().background(Canvas)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 28.dp, vertical = 26.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Spacer(Modifier.height(6.dp))
-                    Text("SIGN IN TO YOUR ACCOUNT", color = Color(0xFF20242A), style = MaterialTheme.typography.titleLarge)
+                    Text("SIGN IN TO YOUR ACCOUNT", color = Ink, style = MaterialTheme.typography.titleLarge)
                     Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = role == "Student", onClick = { role = "Student" })
-                            Text("Student", color = Color(0xFF303943))
+                            Text("Student", color = Ink)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             RadioButton(selected = role == "Parent", onClick = { role = "Parent" })
-                            Text("Parent", color = Color(0xFF303943))
+                            Text("Parent", color = Ink)
                         }
                     }
                     OutlinedTextField(
@@ -592,47 +625,57 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                             contentScale = androidx.compose.ui.layout.ContentScale.Fit
                         )
                     } else {
-                        Text("Fetching CAPTCHA from JUET…", color = Color(0xFF526171))
+                        Text("Fetching CAPTCHA from JUET…", color = Muted)
                     }
                     OutlinedTextField(
                         captcha, { captcha = it },
-                        label = { Text("Enter the text as shown in the image *") },
+                        label = { Text("CAPTCHA *") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = loginFieldColors
                     )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("PASSWORD *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                        colors = loginFieldColors
+                    )
                     Button(
                         onClick = { submitUsernameAndCaptcha() },
-                        enabled = !working && userId.isNotBlank() && captcha.isNotBlank(),
+                        enabled = !working && userId.isNotBlank() && captcha.isNotBlank() && password.isNotBlank(),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) { Text(if (working) "PLEASE WAIT…" else "LOGIN") }
-                    Text(status, color = Color(0xFF526171), style = MaterialTheme.typography.bodySmall)
+                    Text(status, color = Muted, style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "JUET validates the CAPTCHA. Password entry stays on JUET's official page.",
-                        color = Color(0xFF718096),
+                        "Your credentials are submitted to JUET's own sign-in form. CAPTCHA must be entered manually.",
+                        color = Muted,
                         style = MaterialTheme.typography.labelSmall
                     )
                     Spacer(Modifier.height(10.dp))
-                    Text("Powered by JIL Information Technology Ltd.", color = Color(0xFF66717E), style = MaterialTheme.typography.labelSmall)
+                    Text("Powered by JIL Information Technology Ltd.", color = Muted, style = MaterialTheme.typography.labelSmall)
                 }
                 "loading" -> Column(
-                    Modifier.fillMaxSize().background(Color.White),
+                    Modifier.fillMaxSize().background(Canvas),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     CircularProgressIndicator(color = Green)
                     Spacer(Modifier.height(12.dp))
-                    Text(status, color = Color(0xFF26313E))
+                    Text(status, color = Ink)
                 }
                 "error" -> Column(
-                    Modifier.fillMaxSize().background(Color.White).padding(24.dp),
+                    Modifier.fillMaxSize().background(Canvas).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Icon(Icons.Default.CloudOff, contentDescription = null, tint = Color(0xFF526171), modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("JUET portal could not load", color = Color(0xFF182331), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(status, color = Color(0xFF526171))
+                    Text("JUET portal could not load", color = Ink, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(status, color = Muted)
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = { stage = "loading"; inspectionAttempts = 0; webView.loadUrl(portalUrl) }) { Text("Retry portal") }
                     TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(portalUrl))) }) {
