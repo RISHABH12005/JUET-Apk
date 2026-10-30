@@ -375,13 +375,13 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
                     if (inspectionAttempts < 16) {
                         view.postDelayed({ inspectPortal(view) }, 1000)
                     } else {
-                        // An unrecognized/empty WebView is not a usable login screen.
-                        // Show recovery actions instead of leaving a blank page with a spinner.
-                        stage = "error"
+                        // Do not hide a page just because DOM inspection cannot identify it.
+                        // Keep the official JUET WebView visible so users can use its own login form.
+                        stage = "fallback"
                         status = if (result.optInt("bodyLength", 0) == 0) {
-                            "JUET returned an empty page inside the app. The portal or one of its required services may not be responding. Retry or open the portal in your browser."
+                            "The page detector could not read JUET's content. The official portal is still open below; if it remains blank, use Refresh or open it in your browser."
                         } else {
-                            "The JUET page loaded, but its sign-in form could not be identified. Open the official page in your browser to continue."
+                            "The official JUET page is open below. Complete sign-in directly on the portal."
                         }
                     }
                 }
@@ -400,7 +400,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            settings.userAgentString = settings.userAgentString.replace("; wv", "").replace("Version/4.0 ", "")
+            // Keep Android System WebView's standard user agent; do not disguise it as Chrome.
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             webChromeClient = object : WebChromeClient() {
@@ -555,7 +555,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
         Box(Modifier.weight(1f).fillMaxWidth()) {
             AndroidView(
                 factory = { webView },
-                modifier = Modifier.fillMaxSize().alpha(if (stage == "password" || stage == "fallback") 1f else 0f)
+                modifier = Modifier.fillMaxSize().alpha(1f)
             )
             when (stage) {
                 "username" -> Column(
