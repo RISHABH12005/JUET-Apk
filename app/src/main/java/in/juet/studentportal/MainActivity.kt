@@ -530,7 +530,7 @@ private fun StudentPortalScreen(onAuthenticated: () -> Unit, onLoggedOut: () -> 
             )
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("JUET Student Portal", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                Text("JUET", color = Ink, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                 Text("Official university sign-in", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             IconButton(onClick = { stage = "loading"; inspectionAttempts = 0; webView.reload() }) {
@@ -669,7 +669,7 @@ private fun DashboardScreen(vm: PortalViewModel) {
     )
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            PageHeader("JUET Student Portal", "University services in one place")
+            PageHeader("JUET", "University services in one place")
         }
         item {
             Card(
